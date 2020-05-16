@@ -1,0 +1,16 @@
+Locales["en"] = {
+    ["flt"]                 = "FLT",
+    ["enter_flt"]           = "press ~INPUT_CONTEXT~ to get your FLT",
+    ["return_flt"]          = "press ~INPUT_CONTEXT~ to return your FLT",
+    ["change_clothes"]      = "press ~INPUT_CONTEXT~ to begin / end work",
+    ["locker_room"]         = "FLT Locker Room",
+    ["warehouse_return"]    = "FLT Return",
+    ["warehouse_pickup"]    = "FLT Pick-up",
+    ["notif_getin"]         = "~g~Get into your FTL to start work",
+    ["notif_offduty"]       = "~g~You're now off duty.",
+    ["notif_onduty"]        = "~g~You're now on duty",
+    ["notif_pickup"]        = "Pick the pallet up",
+    ["notif_dropoff"]        = "Take the pallet to the drop-off location",
+    ["pallet_pickup"]       = "~g~A pallet is ready for collection",
+    ["pallet_deliver"]      = "press ~INPUT_CONTEXT~ to drop off the pallet",
+}
