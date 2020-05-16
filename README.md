@@ -10,7 +10,7 @@ Forklift job for FiveM.
 
 ### License
 
-esx_forklift - EForklift job for FiveM.
+esx_forklift - Forklift job for FiveM.
 
 Copyright (C) 2020 Karl Saunders
 
