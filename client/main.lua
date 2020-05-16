@@ -486,11 +486,10 @@ end
 function FLTReturn(force)
     if Player.FLT then
         Player.Working = false
-        print(Player.FLT.plate)
-        print(GetVehicleNumberPlateText(GetVehiclePedIsIn(Player.Ped, false)))
+        
         -- Player returned FLT to warehouse
         if force or (IsPedInAnyVehicle(Player.Ped) and Player.FLT.plate == GetVehicleNumberPlateText(GetVehiclePedIsIn(Player.Ped, false))) then
-            TriggerServerEvent('esx_flt:getPaid', Player.Delivered * Config.Pay)
+            TriggerServerEvent('esx_flt:getWages', Player.Delivered * Config.Pay)
 
             ESX.Game.DeleteVehicle(Player.FLT.vehicle)
             Player.FLT = false
