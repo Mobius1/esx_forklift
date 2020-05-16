@@ -506,9 +506,10 @@ AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
         Reset(true)
 
-        SetEntityCoords(Player.Ped, Config.Zones.Locker.Pos.x, Config.Zones.Locker.Pos.y, Config.Zones.Locker.Pos.z, 1, 0, 0, 1)
-
         if Config.Debug then
+            
+            SetEntityCoords(Player.Ped, Config.Zones.Locker.Pos.x, Config.Zones.Locker.Pos.y, Config.Zones.Locker.Pos.z, 1, 0, 0, 1)
+
             for k, Drop in pairs(Config.Drops) do
                 if Drop.Entity then
                     ESX.Game.DeleteObject(Drop.Entity)
