@@ -17,9 +17,12 @@ Threads = {
     Zone = false,
 }
 
+Points = nil
+
 Zone = false
 ShowHint = false
 HintMessage = false
+Message = false
 
 Citizen.CreateThread(function()
     while ESX == nil do
@@ -60,6 +63,48 @@ AddEventHandler('esx:setJob', function(job)
         }
     end
 end)
+
+local RenderText = function(text, font, x, y, scale, r, g, b, a)
+    if x == nil then  x = 0.5 end
+    if y == nil then y = 0.5 end 
+    if r == nil then r = 255 end   
+    if g == nil then g = 255 end   
+    if b == nil then b = 255 end   
+    if a == nil then a = 255 end   
+
+    SetTextFont(font)
+    SetTextProportional(7)
+    SetTextCentre(true)
+    SetTextScale(scale, scale)
+    SetTextColour(r, g, b, a)
+    SetTextDropShadow(0, 0, 0, 0,255)
+    SetTextDropShadow()
+    SetTextEdge(4, 0, 0, 0, 255)
+    SetTextOutline()
+    SetTextEntry("STRING")
+    AddTextComponentString(text)
+    DrawText(x,y)
+end
+
+Citizen.CreateThread(function()
+    while true do
+        if Message then
+            if Message == 'delivered' then
+                RenderDeliveredMessage()
+            end
+
+            Citizen.SetTimeout(5000, function()
+                Message = false
+            end)
+        end
+        Citizen.Wait(0)
+    end
+end)
+
+function RenderDeliveredMessage()
+    RenderText('Pallet Delivered', 7, 0.5, 0.25, 1.50, 238, 238, 0, 255)
+    RenderText(Player.Delivered .. ' Pallets Delivered', 4, 0.5, 0.34, 0.5)
+end
 
 function InitFLTJob()
 
@@ -201,10 +246,6 @@ function StartMarkerThread()
                         if Player.FLT.Active then
                             DrawMarker(Config.Zones.Return.Type, Config.Zones.Return.Pos, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Return.Size.x, Config.Zones.Return.Size.y, Config.Zones.Return.Size.z, Config.Zones.Return.Color.r, Config.Zones.Return.Color.g, Config.Zones.Return.Color.b, 100, false, true, 2, false, nil, nil, false)
                         end
-                    end
-
-                    if Player.Pallet and Player.Pallet.Entity and not Player.Drop.PickedUp then
-                        DrawMarker(0, vector3(Player.Pallet.InitCoords.x, Player.Pallet.InitCoords.y, Player.Pallet.InitCoords.z + 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Return.Size.x, Config.Zones.Return.Size.y, Config.Zones.Return.Size.z, Config.Zones.Return.Color.r, Config.Zones.Return.Color.g, Config.Zones.Return.Color.b, 100, true, true, 2, false, nil, nil, false)
                     end
 
                     if Player.Drop and Player.Drop.PickedUp then
@@ -420,7 +461,8 @@ function SpawnPallet()
     if not Player.Pallet then
         Player.Pallet = {}
 
-        local Points = GetPoints()
+        GetPoints()
+
         local Pickup = Config.Drops[Points[1]]
         local prop = Config.Props[ math.random( #Config.Props ) ]
 
@@ -497,11 +539,34 @@ function RemovePallet()
 end
 
 function GetPoints()
-    local points = {}
+    points = {}
     math.randomseed( GetGameTimer() )
     for i = 1, 2 do
-        table.insert(points, math.random( #Config.Drops ))
+        local point = math.random( #Config.Drops )
+
+        if Points ~= nil and i == 1 then
+            while point == points[2] do
+                point = math.random( #Config.Drops )
+            end
+        end
+
+        if Points ~= nil and i == 2 then
+            while point == points[1] do
+                point = math.random( #Config.Drops )
+            end
+        end
+
+        if Points ~= nil then
+            while point == Points[i] do
+                point = math.random( #Config.Drops )
+            end
+        end
+
+        table.insert(points, point)
     end
+
+    Points = points
+
     return points
 end
 
@@ -526,6 +591,8 @@ function FLTDrop()
     Player.Delivered = Player.Delivered + 1
     PlaySoundFrontend(-1, "PICK_UP", "HUD_FRONTEND_DEFAULT_SOUNDSET", 1)
     SpawnPallet()
+
+    Message = 'delivered'
 end
 
 function FLTSpawn()

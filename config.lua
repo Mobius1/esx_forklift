@@ -9,7 +9,6 @@ Config.Pay = 25
 
 
 Config.Props = {
-    -- 'prop_boxpile_02b',
     'prop_boxpile_06a',
     'prop_boxpile_06b',
     'prop_boxpile_07d'
