@@ -10,8 +10,8 @@ ESX.RegisterServerCallback('esx_flt:ready', function(source, cb)
     end
 end)
 
-RegisterServerEvent('esx_flt:getWages')
-AddEventHandler('esx_flt:getWages', function(amount)
+RegisterServerEvent('esx_flt:getPaid')
+AddEventHandler('esx_flt:getPaid', function(amount)
     local xPlayer = ESX.GetPlayerFromId(source)
     xPlayer.addMoney(math.floor(amount))	
 end)

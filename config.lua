@@ -7,7 +7,13 @@ Config.Debug = false
 Config.DrawDistance = 50
 Config.Pay = 25
 
-Config.Pallet = 'prop_boxpile_07d'
+
+Config.Props = {
+    -- 'prop_boxpile_02b',
+    'prop_boxpile_06a',
+    'prop_boxpile_06b',
+    'prop_boxpile_07d'
+}
 
 Config.Zones = {
 
@@ -50,10 +56,10 @@ Config.Zones = {
 }
 
 Config.Drops = {
-    { Pos = vector3(-288.51120, -2459.24800, 6.30266), Heading = 320.10 },
-    { Pos = vector3(-297.65290, -2451.62400, 6.30266), Heading = 320.10 },
-    { Pos = vector3(-306.97400, -2443.72600, 6.30266), Heading = 320.10 },        
-    { Pos = vector3(-315.86010, -2436.30500, 6.30266), Heading = 320.10 },
+    { Pos = vector3(-288.51120, -2459.24800, 6.30266), Heading = 140.10 },
+    { Pos = vector3(-297.65290, -2451.62400, 6.30266), Heading = 140.10 },
+    { Pos = vector3(-306.97400, -2443.72600, 6.30266), Heading = 140.10 },        
+    { Pos = vector3(-315.86010, -2436.30500, 6.30266), Heading = 140.10 },
     { Pos = vector3(-288.82590, -2497.24900, 6.30266), Heading = 320.10 },
     { Pos = vector3(-298.07520, -2489.37500, 6.30266), Heading = 320.10 },
     { Pos = vector3(-307.21750, -2481.78500, 6.30266), Heading = 320.10 },

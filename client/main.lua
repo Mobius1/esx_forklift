@@ -40,11 +40,6 @@ Citizen.CreateThread(function()
     end
 end)
 
-RegisterNetEvent('esx:playerLoaded')
-AddEventHandler('esx:playerLoaded', function(xPlayer)		
-    Player.Data = xPlayer
-    UpdateBlips()
-end)
 
 RegisterNetEvent('esx:setJob')
 AddEventHandler('esx:setJob', function(job)
@@ -67,6 +62,16 @@ AddEventHandler('esx:setJob', function(job)
 end)
 
 function InitFLTJob()
+
+
+    -- local objs = ESX.Game.GetObjects()
+
+    -- for k, v in pairs(objs) do
+    --     if GetEntityModel(v) == 519908417 then
+    --         ESX.Game.DeleteObject(v)
+    --     end
+    -- end
+
     ESX.TriggerServerCallback("esx_flt:ready", function(xPlayer, auth)
         if auth then
             Player.Data = xPlayer
@@ -88,7 +93,11 @@ function InitFLTJob()
 
             if not Threads.Zone then
                 StartZoneThread()
-            end                                    
+            end 
+            
+            if not Threads.Drop then
+                StartDropThread()                
+            end
         
             UpdateBlips()  
         end
@@ -148,7 +157,7 @@ function StartMarkerThread()
             if Config.Debug then
                 for k, Drop in pairs(Config.Drops) do
                     if not Drop.Entity then
-                        ESX.Game.SpawnObject(Config.Pallet, Drop.Pos, function(pallet)
+                        ESX.Game.SpawnObject('prop_boxpile_09a', Drop.Pos, function(pallet)
                             SetEntityHeading(pallet, Drop.Heading)
                             PlaceObjectOnGroundProperly(pallet)
     
@@ -173,6 +182,8 @@ function StartMarkerThread()
                         end)
                     else
                         DrawBox(Drop.Bounds[1], Drop.Bounds[2], Drop.Bounds[4], Drop.Bounds[3], 238, 238, 0, 100)
+
+                        ESX.Game.Utils.DrawText3D(Drop.Pos, Drop.Pos.x .. ' | ' .. Drop.Pos.y .. ' | ' .. Drop.Heading, 1.00)
                     end
                 end
             end
@@ -197,8 +208,8 @@ function StartMarkerThread()
                     end
 
                     if Player.Drop and Player.Drop.PickedUp then
-                        DrawMarker(0, vector3(Player.Drop.Pos.x, Player.Drop.Pos.y, Player.Drop.Pos.z + 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Return.Size.x, Config.Zones.Return.Size.y, Config.Zones.Return.Size.z, Config.Zones.Return.Color.r, Config.Zones.Return.Color.g, Config.Zones.Return.Color.b, 100, true, true, 2, false, nil, nil, false)
                         DrawBox(Player.Drop.Bounds[1], Player.Drop.Bounds[2], Player.Drop.Bounds[4], Player.Drop.Bounds[3], 238, 238, 0, 100)
+                        DrawMarker(0, vector3(Player.Drop.Pos.x, Player.Drop.Pos.y, Player.Drop.Pos.z + 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Return.Size.x, Config.Zones.Return.Size.y, Config.Zones.Return.Size.z, Config.Zones.Return.Color.r, Config.Zones.Return.Color.g, Config.Zones.Return.Color.b, 100, true, true, 2, false, nil, nil, false)
                     end
                 end
             end       
@@ -249,8 +260,7 @@ function StartZoneThread()
                     end  
                     
                     if Player.Working and Player.Drop then
-                        local pcoords = GetEntityCoords(Player.Pallet.Entity)
-                        local pdist = #(Player.Drop.Pos - pcoords)
+                        local inAir = IsEntityInAir(Player.Pallet.Entity)
                         local atPallet = IsEntityAtEntity(Player.FLT.vehicle, Player.Pallet.Entity, 3.0, 3.0, 3.0, 0, 1, 0)
 
                         if not Player.Drop.PickedUp then
@@ -259,18 +269,11 @@ function StartZoneThread()
                                 ESX.ShowNotification(_U('notif_pickup'))
                             end
 
-                            if pcoords.z > Player.Pallet.InitCoords.z + 0.10 then
+                            if inAir then
                                 Player.Drop.PickedUp = true
                                 AddPalletBlip(Player.Drop)
                                 ESX.ShowNotification(_U('notif_dropoff'))
                             end
-                        end
-
-
-                        if pdist <= 1.0 then
-                            Zone = 'Drop'
-                            ShowHint = true
-                            HintMessage = _U('pallet_deliver')
                         end
                     end
                 end
@@ -283,8 +286,6 @@ function StartZoneThread()
                             FLTSpawn()
                         elseif Zone == 'Return' then
                             FLTReturn()
-                        elseif Zone == 'Drop' then
-                            FLTDrop()
                         end
                     end
                 end            
@@ -293,6 +294,51 @@ function StartZoneThread()
             Citizen.Wait(0)
         end
     end)
+end
+
+function StartDropThread()
+    Threads.Drop = true
+    Citizen.CreateThread(function()
+        while true do
+            if Ready and Authorized then
+                if Player.Working and Player.Drop then
+                    local pcoords = GetEntityCoords(Player.Pallet.Entity)
+                    local inAir = IsEntityInAir(Player.Pallet.Entity)   
+                    local pdist = #(Player.Drop.Pos - pcoords)                 
+
+                    -- Only do checks if player is close
+                    if pdist <= 0.5 then      
+                        if ValidDrop(inAir) then
+                            FLTDrop()
+                        end   
+                    else
+                        if not inAir then
+                            DrawMarker(0, vector3(pcoords.x, pcoords.y, pcoords.z + 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Return.Size.x, Config.Zones.Return.Size.y, Config.Zones.Return.Size.z, Config.Zones.Return.Color.r, Config.Zones.Return.Color.g, Config.Zones.Return.Color.b, 100, true, true, 2, false, nil, nil, false)
+                        end                
+                    end                
+                end                
+            end
+            Citizen.Wait(0)
+        end
+    end)
+end
+
+function ValidDrop(inAir)
+    local offset = 1.0
+    local heading = GetEntityHeading(Player.Pallet.Entity) 
+    local angle = math.abs(Player.Drop.Heading - heading)
+    local atPallet = IsEntityAtEntity(Player.FLT.vehicle, Player.Pallet.Entity, 3.0, 3.0, 3.0, 0, 1, 0)
+
+    local correctAngle = false
+    if angle < offset or angle - 180 < offset then
+        correctAngle = true
+    end
+
+    if correctAngle and not inAir and not atPallet then
+        return true
+    end
+
+    return false
 end
 
 function RemoveBlips()
@@ -374,9 +420,16 @@ function SpawnPallet()
     if not Player.Pallet then
         Player.Pallet = {}
 
-        local Pickup = GetDropoffPoint()
+        local Points = GetPoints()
+        local Pickup = Config.Drops[Points[1]]
+        local prop = Config.Props[ math.random( #Config.Props ) ]
 
-        ESX.Game.SpawnObject(Config.Pallet, Pickup.Pos, function(pallet)
+        ESX.Game.SpawnObject(prop, Pickup.Pos, function(pallet)
+
+            if prop == 'prop_boxpile_02b' then
+                Pickup.Heading = Pickup.Heading + 90
+            end
+
             SetEntityHeading(pallet, Pickup.Heading)
             PlaceObjectOnGroundProperly(pallet)
 
@@ -385,9 +438,9 @@ function SpawnPallet()
             Player.Pallet.Entity = pallet
             Player.Pallet.InitCoords = GetEntityCoords(pallet)
 
-            Player.Drop = GetDropoffPoint()
+            Player.Drop = Config.Drops[Points[2]] 
 
-            DrawDropOffPoint()
+            DrawDropOffPoint(prop)
 
             AddPalletBlip(Player.Pallet)
             
@@ -396,8 +449,8 @@ function SpawnPallet()
     end
 end
 
-function DrawDropOffPoint()
-    ESX.Game.SpawnObject(Config.Pallet, Player.Drop.Pos, function(pallet)
+function DrawDropOffPoint(prop)
+    ESX.Game.SpawnObject(prop, Player.Drop.Pos, function(pallet)
         SetEntityHeading(pallet, Player.Drop.Heading)
         PlaceObjectOnGroundProperly(pallet)
     
@@ -443,8 +496,13 @@ function RemovePallet()
     end
 end
 
-function GetDropoffPoint()
-    return Config.Drops[ math.random( #Config.Drops ) ]
+function GetPoints()
+    local points = {}
+    math.randomseed( GetGameTimer() )
+    for i = 1, 2 do
+        table.insert(points, math.random( #Config.Drops ))
+    end
+    return points
 end
 
 function Reset(force)
@@ -466,6 +524,7 @@ function FLTDrop()
     HintMessage = false
 
     Player.Delivered = Player.Delivered + 1
+    PlaySoundFrontend(-1, "PICK_UP", "HUD_FRONTEND_DEFAULT_SOUNDSET", 1)
     SpawnPallet()
 end
 
@@ -486,10 +545,11 @@ end
 function FLTReturn(force)
     if Player.FLT then
         Player.Working = false
-        
+        print(Player.FLT.plate)
+        print(GetVehicleNumberPlateText(GetVehiclePedIsIn(Player.Ped, false)))
         -- Player returned FLT to warehouse
         if force or (IsPedInAnyVehicle(Player.Ped) and Player.FLT.plate == GetVehicleNumberPlateText(GetVehiclePedIsIn(Player.Ped, false))) then
-            TriggerServerEvent('esx_flt:getWages', Player.Delivered * Config.Pay)
+            TriggerServerEvent('esx_flt:getPaid', Player.Delivered * Config.Pay)
 
             ESX.Game.DeleteVehicle(Player.FLT.vehicle)
             Player.FLT = false
@@ -501,15 +561,16 @@ function FLTReturn(force)
     end
 end
 
+
 -- Reset collectables on resource stop
 AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
+
         Reset(true)
 
-        if Config.Debug then
-            
-            SetEntityCoords(Player.Ped, Config.Zones.Locker.Pos.x, Config.Zones.Locker.Pos.y, Config.Zones.Locker.Pos.z, 1, 0, 0, 1)
+        SetEntityCoords(Player.Ped, Config.Zones.Locker.Pos.x, Config.Zones.Locker.Pos.y, Config.Zones.Locker.Pos.z, 1, 0, 0, 1)
 
+        if Config.Debug then
             for k, Drop in pairs(Config.Drops) do
                 if Drop.Entity then
                     ESX.Game.DeleteObject(Drop.Entity)
@@ -556,6 +617,8 @@ function FLTMenu()
                 end
 
                 ESX.ShowNotification(_U('notif_onduty'))
+
+                SetEntityCoords(Player.Ped, Config.Zones.Garage.Pos.x, Config.Zones.Garage.Pos.y, Config.Zones.Garage.Pos.z, 1, 0, 0, 1)
 
                 UpdateBlips()
             end)
