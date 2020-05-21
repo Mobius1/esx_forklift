@@ -48,6 +48,30 @@ Citizen.CreateThread(function()
     end
 end)
 
+RegisterNetEvent('esx:playerLoaded')
+AddEventHandler('esx:playerLoaded', function(xPlayer)
+    Player.Data = xPlayer
+
+    if Player.Data.job.name == 'flt' then
+        Player.Authorized = true
+        InitFLTJob()
+    end
+end)
+
+RegisterNetEvent('esx:setJob')
+AddEventHandler('esx:setJob', function(job)
+    if job.name == 'flt' then
+        Player.Data.job = job
+        Player.OnDuty = false
+        Player.Authorized = true
+        InitFLTJob()
+    else
+        RemoveBlips()
+        Ready = false
+        Authorized = false
+    end
+end)
+
 -- Init Job
 function InitFLTJob()
     ESX.TriggerServerCallback("esx_flt:ready", function(xPlayer, auth)
@@ -58,6 +82,70 @@ function InitFLTJob()
             Ready = true
         
             UpdateBlips()  
+            Populate()
+        end
+    end)    
+end
+
+PEDS = {}
+
+function Populate()
+    PEDS = {}
+    local Positions = {
+        { x = 29.71, y = -2659.19, z = 5.00, h = 90.00, anim = "WORLD_HUMAN_WELDING" },
+        { x = 38.78, y = -2660.30, z = 5.00, h = 270.00, anim = "WORLD_HUMAN_WELDING" },
+        { x = 10.14, y = -2667.49, z = 5.00, h = 90.00, anim = "WORLD_HUMAN_WELDING" },
+        { x = 9.06, y = -2664.05, z = 5.00, h = 270.00, anim = "WORLD_HUMAN_HANG_OUT_STREET" },
+        { x = 10.23, y = -2664.17, z = 5.00, h = 77.04, anim = "WORLD_HUMAN_HANG_OUT_STREET" },
+        { x = 13.40, y = -2654.54, z = 5.00, h = 0.00, anim = "WORLD_HUMAN_JANITOR" },
+        { x = 8.41, y = -2653.74, z = 5.00, h = 0.00, anim = "WORLD_HUMAN_SMOKING" },
+        { x = 14.24, y = -2664.20, z = 5.00, h = 230.00, anim = "CODE_HUMAN_MEDIC_KNEEL" },
+        { x = 15.46, y = -2663.82, z = 5.00, h = 140.00, anim = "CODE_HUMAN_MEDIC_KNEEL" },
+        { x = 14.17, y = -2665.48, z = 5.00, h = 327.00, anim = "WORLD_HUMAN_CLIPBOARD" },
+    }
+
+    local Radios = {
+        { x = 8.60, y = -2662.64, z = 7.50, h = 90.00, model = 'prop_boombox_01' },
+        -- { x = 28.02, y = -2672.70, z = 6.00, h = 90.00, model = 'prop_boombox_01' },
+    }
+
+    local Peds = {
+        0x867639D1,
+        0x14D7B4E0
+    }
+
+    for k, v in pairs(Positions) do
+
+        RequestModel( 0x867639D1 )
+        while ( not HasModelLoaded( 0x867639D1 ) ) do
+            Citizen.Wait( 1 )
+        end
+
+        local ped = CreatePed('PED_TYPE_CIVMALE', 0x867639D1, v.x, v.y, v.z, v.h, false, false)
+        TaskStartScenarioInPlace(ped, v.anim, 0, true)
+
+
+        -- if v.anim == "WORLD_HUMAN_WELDING" then
+        SetPedComponentVariation(Player.Ped, 0, 5, 0, 2)
+        -- end
+        table.insert(PEDS, ped)
+    end
+    
+    Citizen.CreateThread(function()
+        for k, v in ipairs(Radios) do
+            local model = GetHashKey(v.model)
+            RequestModel(model)
+            while not HasModelLoaded(model) do
+                Citizen.Wait(0)
+            end            
+            local radio = CreateObject(model, v.x, v.y, v.z, true, false, false)
+            SetEntityHeading(radio, v.h)
+            PlaceObjectOnGroundProperly(radio)
+            LinkStaticEmitterToEntity("SE_Script_Placed_Prop_Emitter_Boombox", radio)
+            SetEmitterRadioStation("SE_Script_Placed_Prop_Emitter_Boombox", GetRadioStationName(1))
+            SetStaticEmitterEnabled("SE_Script_Placed_Prop_Emitter_Boombox", true)
+
+            table.insert(PEDS,radio)
         end
     end)    
 end
@@ -317,49 +405,6 @@ function RemoveBlips()
 end
 
 
------------------------------
---          RESET          --
------------------------------
-
--- Reset Job
-function Reset(force)
-    StoreFLT(force)
-    RemovePallet()
-
-    Player.Data = nil
-    Player.OnDuty = false
-    Player.FLT = false
-    Player.Working = false
-    Player.Pallet = false
-    Player.InRange = false
-    Player.Delivered = 0
-    
-    Hint.Display = false
-    Hint.Zone = false
-    Hint.Message = false
-    
-    Message = false
-end
-
--- Reset collectables on resource stop
-AddEventHandler('onResourceStop', function(resource)
-    if resource == GetCurrentResourceName() then
-
-        Reset(true)
-
-        if Config.Debug then
-            SetEntityCoords(Player.Ped, Config.Zones.Locker.Pos.x, Config.Zones.Locker.Pos.y, Config.Zones.Locker.Pos.z, 1, 0, 0, 1)
-            for k, Drop in pairs(Config.Drops) do
-                if Drop.Entity then
-                    ESX.Game.DeleteObject(Drop.Entity)
-                    Drop.Entity = false
-                end
-            end
-        end        
-    end
-end)
-
-
 -------------------------------
 --          THREADS          --
 -------------------------------
@@ -580,6 +625,39 @@ Citizen.CreateThread(function()
     end
 end)
 
+-- Debug Thread
+Citizen.CreateThread(function()
+    while true do
+        if Ready and Config.Debug then
+            for k, Drop in pairs(Config.Drops) do
+                if not Drop.Entity then
+                    ESX.Game.SpawnObject('prop_boxpile_07d', Drop.Pos, function(pallet)
+                        SetEntityHeading(pallet, Drop.Heading)
+                        PlaceObjectOnGroundProperly(pallet)
+    
+                        Wait(250)
+    
+                        Drop.Entity = pallet
+    
+                        Drop.Bounds = Utils.GetEntityBounds(pallet)
+
+                        Wait(250)
+
+                        ESX.Game.DeleteObject(pallet)
+                    end)
+                else
+                    if #(Player.Pos - Drop.Pos) < 100 then
+                        Utils.DrawBox(Drop.Bounds[1], Drop.Bounds[2], Drop.Bounds[4], Drop.Bounds[3], 238, 238, 0, 100)
+
+                        -- ESX.Game.Utils.DrawText3D(Drop.Pos, Drop.Pos.x .. ' | ' .. Drop.Pos.y .. ' | ' .. Drop.Heading, 1.00)
+                    end
+                end
+            end          
+        end
+        Citizen.Wait(0)
+    end
+end)
+
 ----------------------------
 --          MENU          --
 ----------------------------
@@ -633,3 +711,51 @@ function OpenFLTMenu()
         end
     )
 end
+
+-----------------------------
+--          RESET          --
+-----------------------------
+
+-- Reset Job
+function Reset(force)
+    StoreFLT(force)
+    RemovePallet()
+
+    Player.Data = nil
+    Player.OnDuty = false
+    Player.FLT = false
+    Player.Working = false
+    Player.Pallet = false
+    Player.InRange = false
+    Player.Delivered = 0
+    
+    Hint.Display = false
+    Hint.Zone = false
+    Hint.Message = false
+    
+    Message = false
+end
+
+-- Reset collectables on resource stop
+AddEventHandler('onResourceStop', function(resource)
+    if resource == GetCurrentResourceName() then
+
+        Reset(true)
+
+        if #PEDS > 0 then
+            for k, v in pairs(PEDS) do
+                DeleteEntity(v)
+            end
+        end
+
+        if Config.Debug then
+            -- SetEntityCoords(Player.Ped, Config.Zones.Locker.Pos.x, Config.Zones.Locker.Pos.y, Config.Zones.Locker.Pos.z, 1, 0, 0, 1)
+            for k, Drop in pairs(Config.Drops) do
+                if Drop.Entity then
+                    ESX.Game.DeleteObject(Drop.Entity)
+                    Drop.Entity = false
+                end
+            end
+        end        
+    end
+end)
