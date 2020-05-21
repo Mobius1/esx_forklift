@@ -6,6 +6,7 @@ Config.Enabled = true
 Config.Debug = false
 Config.DrawDistance = 50
 Config.Pay = 25
+Config.Vehicle = 'forklift'
 
 
 Config.Props = {

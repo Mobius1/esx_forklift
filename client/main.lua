@@ -229,7 +229,7 @@ end
 
 -- Spawn the FLT
 function SpawnFLT()
-    ESX.Game.SpawnVehicle('dibzer_forklift', Config.Zones.FLT.Pos, Config.Zones.FLT.Heading, function(flt)
+    ESX.Game.SpawnVehicle(Config.Vehicle, Config.Zones.FLT.Pos, Config.Zones.FLT.Heading, function(flt)
         SetVehicleNumberPlateText(flt, math.random(1000, 9999))
         Wait(100)
 
