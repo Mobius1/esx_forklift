@@ -25,6 +25,9 @@ Message.Ready = true
 Message.Title = nil
 Message.Message = nil
 
+Populated = false
+
+PROPS = {}
 
 Citizen.CreateThread(function()
     while ESX == nil do
@@ -81,71 +84,7 @@ function InitFLTJob()
             Player.Pos = GetEntityCoords(Player.Ped)
             Ready = true
         
-            UpdateBlips()  
-            Populate()
-        end
-    end)    
-end
-
-PEDS = {}
-
-function Populate()
-    PEDS = {}
-    local Positions = {
-        { x = 29.71, y = -2659.19, z = 5.00, h = 90.00, anim = "WORLD_HUMAN_WELDING" },
-        { x = 38.78, y = -2660.30, z = 5.00, h = 270.00, anim = "WORLD_HUMAN_WELDING" },
-        { x = 10.14, y = -2667.49, z = 5.00, h = 90.00, anim = "WORLD_HUMAN_WELDING" },
-        { x = 9.06, y = -2664.05, z = 5.00, h = 270.00, anim = "WORLD_HUMAN_HANG_OUT_STREET" },
-        { x = 10.23, y = -2664.17, z = 5.00, h = 77.04, anim = "WORLD_HUMAN_HANG_OUT_STREET" },
-        { x = 13.40, y = -2654.54, z = 5.00, h = 0.00, anim = "WORLD_HUMAN_JANITOR" },
-        { x = 8.41, y = -2653.74, z = 5.00, h = 0.00, anim = "WORLD_HUMAN_SMOKING" },
-        { x = 14.24, y = -2664.20, z = 5.00, h = 230.00, anim = "CODE_HUMAN_MEDIC_KNEEL" },
-        { x = 15.46, y = -2663.82, z = 5.00, h = 140.00, anim = "CODE_HUMAN_MEDIC_KNEEL" },
-        { x = 14.17, y = -2665.48, z = 5.00, h = 327.00, anim = "WORLD_HUMAN_CLIPBOARD" },
-    }
-
-    local Radios = {
-        { x = 8.60, y = -2662.64, z = 7.50, h = 90.00, model = 'prop_boombox_01' },
-        -- { x = 28.02, y = -2672.70, z = 6.00, h = 90.00, model = 'prop_boombox_01' },
-    }
-
-    local Peds = {
-        0x867639D1,
-        0x14D7B4E0
-    }
-
-    for k, v in pairs(Positions) do
-
-        RequestModel( 0x867639D1 )
-        while ( not HasModelLoaded( 0x867639D1 ) ) do
-            Citizen.Wait( 1 )
-        end
-
-        local ped = CreatePed('PED_TYPE_CIVMALE', 0x867639D1, v.x, v.y, v.z, v.h, false, false)
-        TaskStartScenarioInPlace(ped, v.anim, 0, true)
-
-
-        -- if v.anim == "WORLD_HUMAN_WELDING" then
-        SetPedComponentVariation(Player.Ped, 0, 5, 0, 2)
-        -- end
-        table.insert(PEDS, ped)
-    end
-    
-    Citizen.CreateThread(function()
-        for k, v in ipairs(Radios) do
-            local model = GetHashKey(v.model)
-            RequestModel(model)
-            while not HasModelLoaded(model) do
-                Citizen.Wait(0)
-            end            
-            local radio = CreateObject(model, v.x, v.y, v.z, true, false, false)
-            SetEntityHeading(radio, v.h)
-            PlaceObjectOnGroundProperly(radio)
-            LinkStaticEmitterToEntity("SE_Script_Placed_Prop_Emitter_Boombox", radio)
-            SetEmitterRadioStation("SE_Script_Placed_Prop_Emitter_Boombox", GetRadioStationName(1))
-            SetStaticEmitterEnabled("SE_Script_Placed_Prop_Emitter_Boombox", true)
-
-            table.insert(PEDS,radio)
+            UpdateBlips()
         end
     end)    
 end
@@ -170,7 +109,8 @@ function SpawnPallet()
 
         ESX.Game.SpawnObject(prop, Pickup.Pos, function(pallet)
             SetEntityHeading(pallet, Pickup.Heading)
-            PlaceObjectOnGroundProperly(pallet)
+
+            Player.Pallet.Ready = false
 
             Wait(1000)
 
@@ -417,6 +357,13 @@ Citizen.CreateThread(function()
                 Player.Ped = PlayerPedId()
             end
             Player.Pos = GetEntityCoords(Player.Ped)
+
+            if not Populated then
+                if #(Config.Zones.Locker.Pos - Player.Pos) < 50 then
+                    Populate()
+                end
+            end
+
         end
         Citizen.Wait(100)
     end
@@ -532,7 +479,16 @@ Citizen.CreateThread(function()
         if Ready and Player.Authorized then
             if Player.Working and Player.Drop then
                 local pcoords = GetEntityCoords(Player.Pallet.Entity) 
-                local pdist = #(Player.Drop.Pos - pcoords)                 
+                local pdist = #(Player.Drop.Pos - pcoords) 
+                
+                if not Player.Pallet.Ready then
+                    if pdist < 50 then
+                        Player.Pallet.Ready = true
+
+                        -- If pallet is far from player, collisions might not be loaded so it'll fall through floor
+                        PlaceObjectOnGroundProperly(Player.Pallet.Entity)
+                    end
+                end
 
                 -- Only do checks if player is close
                 if pdist <= 0.5 then      
@@ -742,8 +698,8 @@ AddEventHandler('onResourceStop', function(resource)
 
         Reset(true)
 
-        if #PEDS > 0 then
-            for k, v in pairs(PEDS) do
+        if #PROPS > 0 then
+            for k, v in pairs(PROPS) do
                 DeleteEntity(v)
             end
         end
@@ -759,3 +715,66 @@ AddEventHandler('onResourceStop', function(resource)
         end        
     end
 end)
+
+function Populate()
+    PROPS = {}
+    local Positions = {
+        { x = 29.71, y = -2659.19, z = 5.00, h = 90.00, anim = "WORLD_HUMAN_WELDING" },
+        { x = 38.78, y = -2660.30, z = 5.00, h = 270.00, anim = "WORLD_HUMAN_WELDING" },
+        { x = 10.14, y = -2667.49, z = 5.00, h = 90.00, anim = "WORLD_HUMAN_WELDING" },
+        { x = 9.06, y = -2664.05, z = 5.00, h = 270.00, anim = "WORLD_HUMAN_HANG_OUT_STREET" },
+        { x = 10.23, y = -2664.17, z = 5.00, h = 77.04, anim = "WORLD_HUMAN_HANG_OUT_STREET" },
+        { x = 13.40, y = -2654.54, z = 5.00, h = 0.00, anim = "WORLD_HUMAN_JANITOR" },
+        { x = 8.41, y = -2653.74, z = 5.00, h = 0.00, anim = "WORLD_HUMAN_SMOKING" },
+        { x = 14.24, y = -2664.20, z = 5.00, h = 230.00, anim = "CODE_HUMAN_MEDIC_KNEEL" },
+        { x = 15.46, y = -2663.82, z = 5.00, h = 140.00, anim = "CODE_HUMAN_MEDIC_KNEEL" },
+        { x = 14.17, y = -2665.48, z = 5.00, h = 327.00, anim = "WORLD_HUMAN_CLIPBOARD" },
+    }
+
+    local Radios = {
+        { x = 8.60, y = -2662.64, z = 7.50, h = 90.00, model = 'prop_boombox_01' },
+        -- { x = 28.02, y = -2672.70, z = 6.00, h = 90.00, model = 'prop_boombox_01' },
+    }
+
+    local Peds = {
+        0x867639D1,
+        0x14D7B4E0
+    }
+
+    for k, v in pairs(Positions) do
+
+        RequestModel( 0x867639D1 )
+        while ( not HasModelLoaded( 0x867639D1 ) ) do
+            Citizen.Wait( 1 )
+        end
+
+        local ped = CreatePed('PED_TYPE_CIVMALE', 0x867639D1, v.x, v.y, v.z, v.h, false, false)
+        TaskStartScenarioInPlace(ped, v.anim, 0, true)
+
+
+        -- if v.anim == "WORLD_HUMAN_WELDING" then
+        SetPedComponentVariation(Player.Ped, 0, 5, 0, 2)
+        -- end
+        table.insert(PROPS, ped)
+    end
+    
+    Citizen.CreateThread(function()
+        for k, v in ipairs(Radios) do
+            local model = GetHashKey(v.model)
+            RequestModel(model)
+            while not HasModelLoaded(model) do
+                Citizen.Wait(0)
+            end            
+            local radio = CreateObject(model, v.x, v.y, v.z, true, false, false)
+            SetEntityHeading(radio, v.h)
+            PlaceObjectOnGroundProperly(radio)
+            LinkStaticEmitterToEntity("SE_Script_Placed_Prop_Emitter_Boombox", radio)
+            SetEmitterRadioStation("SE_Script_Placed_Prop_Emitter_Boombox", GetRadioStationName(1))
+            SetStaticEmitterEnabled("SE_Script_Placed_Prop_Emitter_Boombox", true)
+
+            table.insert(PROPS,radio)
+        end
+    end)  
+    
+    Populated = true
+end
