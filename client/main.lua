@@ -351,7 +351,6 @@ function RemoveBlips()
     end
 end
 
-
 -------------------------------
 --          THREADS          --
 -------------------------------
@@ -371,7 +370,6 @@ Citizen.CreateThread(function()
                     Populate()
                 end
             end
-
         end
         Citizen.Wait(100)
     end
@@ -380,7 +378,7 @@ end)
 Citizen.CreateThread(function()
     while true do
         if Ready and Player.Authorized then
-            if Player.Working and Config.Zones.Drop.Pos ~= nil then
+            if Player.Working and Player.Pallet then
                 Player.Pallet.Heading = GetEntityHeading(Player.Pallet.Entity)
                 Player.Pallet.Lifted = IsEntityInAir(Player.Pallet.Entity)
                 Player.AtPallet = IsEntityAtEntity(Player.FLT.Entity, Player.Pallet.Entity, 3.0, 3.0, 3.0, 0, 1, 0)
@@ -455,26 +453,26 @@ Citizen.CreateThread(function()
         if Ready and Player.Authorized then
             if #(Config.Zones.Locker.Pos - Player.Pos) <= Config.DrawDistance then
                 -- Locker Room Marker
-                Utils.AddMarker(Config.Zones.Locker, false)
+                DrawMarker(Config.Zones.Locker.Type, Config.Zones.Locker.Pos, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Locker.Size.x, Config.Zones.Locker.Size.y, Config.Zones.Locker.Size.z, Config.Zones.Locker.Color.r, Config.Zones.Locker.Color.g, Config.Zones.Locker.Color.b, 100, false, true, 2, false, nil, nil, false)
             end
 
             if Player.OnDuty then
                 if not Player.FLT then
                     -- FLT Garage Marker
-                    Utils.AddMarker(Config.Zones.Garage, false)
+                    DrawMarker(Config.Zones.Garage.Type, Config.Zones.Garage.Pos, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Garage.Size.x, Config.Zones.Garage.Size.y, Config.Zones.Garage.Size.z, Config.Zones.Garage.Color.r, Config.Zones.Garage.Color.g, Config.Zones.Garage.Color.b, 100, false, true, 2, false, nil, nil, false)
                 else
                     if Player.FLT.Active then
                         -- FLT Return Marker
-                        Utils.AddMarker(Config.Zones.Garage, false)
+                        DrawMarker(Config.Zones.Return.Type, Config.Zones.Return.Pos, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Return.Size.x, Config.Zones.Return.Size.y, Config.Zones.Return.Size.z, Config.Zones.Return.Color.r, Config.Zones.Return.Color.g, Config.Zones.Return.Color.b, 100, false, true, 2, false, nil, nil, false)
                     end
                 end
 
-                if Config.Zones.Drop.Pos ~= nil and Config.Zones.Drop.PickedUp then
+                if Player.Pallet and Player.Pallet.PickedUp then
                     -- Delivery Point Ghost
                     Utils.DrawBox(Config.Zones.Drop.Bounds[1], Config.Zones.Drop.Bounds[2], Config.Zones.Drop.Bounds[4], Config.Zones.Drop.Bounds[3], 238, 238, 0, 100)
 
                     -- Delivery Point Marker
-                    Utils.AddMarker(Config.Zones.Drop, true, 3.0)
+                    DrawMarker(Config.Zones.Drop.Type, vector3(Config.Zones.Drop.Pos.x, Config.Zones.Drop.Pos.y, Config.Zones.Drop.Pos.z + 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Drop.Size.x, Config.Zones.Drop.Size.y, Config.Zones.Drop.Size.z, Config.Zones.Drop.Color.r, Config.Zones.Drop.Color.g, Config.Zones.Drop.Color.b, 100, true, true, 2, false, nil, nil, false)
                 end
             end
         end       
@@ -509,7 +507,7 @@ Citizen.CreateThread(function()
                     end   
                 else
                     if not Player.AtPallet then
-                        Utils.AddMarker(Config.Zones.Pickup, true, 3.0)
+                        DrawMarker(Config.Zones.Pickup.Type, vector3(Config.Zones.Pickup.Pos.x, Config.Zones.Pickup.Pos.y, Config.Zones.Pickup.Pos.z + 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Pickup.Size.x, Config.Zones.Pickup.Size.y, Config.Zones.Pickup.Size.z, Config.Zones.Pickup.Color.r, Config.Zones.Pickup.Color.g, Config.Zones.Pickup.Color.b, 100, true, true, 2, false, nil, nil, false)
                     end                
                 end                
             end                
@@ -517,7 +515,6 @@ Citizen.CreateThread(function()
         Citizen.Wait(0)
     end
 end)
-
 
 -- Zone Thread
 Citizen.CreateThread(function()
@@ -555,8 +552,8 @@ Citizen.CreateThread(function()
                 end  
                     
                 if Player.Working and Config.Zones.Drop.Pos ~= nil then
-                    if Player.Pallet.Lifted and not Config.Zones.Drop.PickedUp then
-                        Config.Zones.Drop.PickedUp = true
+                    if Player.Pallet.Lifted and not Player.Pallet.PickedUp then
+                        Player.Pallet.PickedUp = true
 
                         AddPalletBlip(Config.Zones.Drop)
                         
@@ -565,8 +562,8 @@ Citizen.CreateThread(function()
                 end
             end
 
-            if IsControlJustReleased(0, 38) then
-                if Hint.Display then
+            if Hint.Display then
+                if IsControlJustReleased(0, 38) then
                     if Hint.Zone == 'Locker' then
                         OpenFLTMenu()
                     elseif Hint.Zone == 'Garage' then
@@ -574,7 +571,7 @@ Citizen.CreateThread(function()
                     elseif Hint.Zone == 'Return' then
                         StoreFLT()
                     end
-                end
+                end            
             end            
         end
 
