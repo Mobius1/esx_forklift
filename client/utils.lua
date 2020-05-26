@@ -31,7 +31,6 @@ Utils.GetEntityBounds = function(entity)
     }
 end
 
-
 Utils.DrawBox = function(p1, p2, p3, p4, r, g, b, a)
     local offset = 0.00
     local side = 1.5
@@ -72,4 +71,13 @@ Utils.RenderText = function(text, font, x, y, scale, r, g, b, a)
     SetTextEntry("STRING")
     AddTextComponentString(text)
     DrawText(x,y)
+end
+
+Utils.AddMarker = function(Marker, Bounce, Offset)
+    local Pos = Marker.Pos
+    if Offset ~= nil then
+        Pos = vector3(Pos.x, Pos.y, Pos.z + Offset)
+    end
+
+    DrawMarker(Marker.Type, Pos, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Marker.Size.x, Marker.Size.y, Marker.Size.z, Marker.Color.r, Marker.Color.g, Marker.Color.b, 100, Bounce, true, 2, false, nil, nil, false)
 end

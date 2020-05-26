@@ -44,19 +44,21 @@ Config.Zones = {
     },
 
     Pickup = {
-        Pos = vector3(-248.95, -2571.79, 5.03),
-        Headind = 180.00
+        Color   = {r = 238, g = 238, b = 0},
+        Size    = {x = 1.5, y = 1.5, z = 1.0},
+        Bounce  = true,
+        Type    = 0
     },
 
     Drop = {
         Color   = {r = 238, g = 238, b = 0},
-        Size    = {x = 2.0, y = 2.0, z = 1.0},        
-        Type    = 25
+        Size    = {x = 1.5, y = 1.5, z = 1.0},
+        Bounce  = true,
+        Type    = 0
     },    
 }
 
 Config.Drops = {
-
     { Pos = vector3(-28.47571, -2665.28300, 5.00000), Heading = 270.00 },
     { Pos = vector3(-28.69450, -2679.03400, 5.00000), Heading = 270.00 },
     { Pos = vector3(51.79316, -2719.11300, 5.00000), Heading = 270.00 },
@@ -147,4 +149,31 @@ Config.Drops = {
     { Pos = vector3(-353.65680, -2800.52600, 5.00000), Heading = 225.00 },   
     { Pos = vector3(-365.87320, -2788.73400, 5.00000), Heading = 90.00 },   
     { Pos = vector3(-366.03740, -2784.58300, 5.00000), Heading = 90.00 },   
+}
+
+
+-----------------------------
+--          Props          --
+-----------------------------
+
+Config.Population = {
+    Enabled = true,
+    Peds = {
+        { x = 29.73, y = -2659.19, z = 5.00, h = 90.00, anim = "WORLD_HUMAN_WELDING" },
+        { x = 38.78, y = -2660.30, z = 5.00, h = 270.00, anim = "WORLD_HUMAN_WELDING" },
+        { x = 10.14, y = -2667.49, z = 5.00, h = 90.00, anim = "WORLD_HUMAN_WELDING" },
+        { x = 29.73, y = -2667.49, z = 5.00, h = 90.00, anim = "WORLD_HUMAN_WELDING" },
+        { x = 9.06, y = -2664.05, z = 5.00, h = 270.00, anim = "WORLD_HUMAN_HANG_OUT_STREET" },
+        { x = 10.23, y = -2664.17, z = 5.00, h = 77.04, anim = "WORLD_HUMAN_HANG_OUT_STREET" },
+        { x = 23.12, y = -2637.86, z = 5.00, h = 186.00, anim = "WORLD_HUMAN_HANG_OUT_STREET" },
+        { x = 22.19, y = -2638.75, z = 5.00, h = 314.00, anim = "WORLD_HUMAN_HANG_OUT_STREET" },
+        { x = 23.58, y = -2639.04, z = 5.00, h = 40.00, anim = "WORLD_HUMAN_HANG_OUT_STREET" },
+        { x = 13.40, y = -2654.54, z = 5.00, h = 0.00, anim = "WORLD_HUMAN_JANITOR" },
+        { x = 8.41, y = -2653.74, z = 5.00, h = 0.00, anim = "WORLD_HUMAN_SMOKING" },
+        { x = 14.24, y = -2664.20, z = 5.00, h = 230.00, anim = "CODE_HUMAN_MEDIC_KNEEL" },
+        { x = 15.46, y = -2663.82, z = 5.00, h = 140.00, anim = "CODE_HUMAN_MEDIC_KNEEL" },
+        { x = 14.17, y = -2665.48, z = 5.00, h = 327.00, anim = "WORLD_HUMAN_CLIPBOARD" },
+        { x = 42.77, y = -2649.36, z = 5.00, h = 217.00, anim = "WORLD_HUMAN_CLIPBOARD" },
+    },
+    Radio = { x = 8.60, y = -2658.69, z = 7.50, h = 90.00, model = 'prop_boombox_01' }
 }
