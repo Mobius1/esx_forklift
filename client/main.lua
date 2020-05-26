@@ -107,11 +107,8 @@ function SpawnPallet()
         local Pickup = Config.Drops[Points[1]]
         local prop = Config.Props[ math.random( #Config.Props ) ]
 
-        Config.Zones.Pickup.Pos = Pickup.Pos
-        Config.Zones.Pickup.Heading = Pickup.Heading
-
-        ESX.Game.SpawnObject(prop, Config.Zones.Pickup.Pos, function(pallet)
-            SetEntityHeading(pallet, Config.Zones.Pickup.Heading)
+        ESX.Game.SpawnObject(prop, Pickup.Pos, function(pallet)
+            SetEntityHeading(pallet, Pickup.Heading)
 
             Player.Pallet.Ready = false
 
@@ -120,15 +117,19 @@ function SpawnPallet()
             Player.Pallet.Entity = pallet
             Player.Pallet.InitCoords = GetEntityCoords(pallet)
 
-            local Drop = Config.Drops[Points[2]] 
-            Config.Zones.Drop.Pos = Drop.Pos
-            Config.Zones.Drop.Heading = Drop.Heading
+            Player.Drop = Config.Drops[Points[2]] 
 
             DrawDropOffPoint(prop)
 
             AddPalletBlip(Player.Pallet)
 
             DisplayMessage('pickup')
+
+            PlaySoundFrontend(-1, "Start_Squelch", "CB_RADIO_SFX", 1);
+
+            Citizen.Wait(1000)
+    
+            PlaySoundFrontend(-1, "End_Squelch", "CB_RADIO_SFX", 1)
         end)
     end
 end
@@ -138,12 +139,10 @@ function RemovePallet()
         ESX.Game.DeleteObject(Player.Pallet.Entity)
 
         RemoveBlip(Player.Pallet.Blip)
-        RemoveBlip(Config.Zones.Drop.Blip)
+        RemoveBlip(Player.Drop.Blip)
 
         Player.Pallet = false
-        Config.Zones.Drop.Pos = nil
-        Config.Zones.Drop.Heading = nil
-        Config.Zones.Drop.Blip = nil
+        Player.Drop = false
         Player.AtPallet = false
     end
 end
@@ -183,13 +182,13 @@ function AddFLTBlip()
 end
 
 function DrawDropOffPoint(prop)
-    ESX.Game.SpawnObject(prop, Config.Zones.Drop.Pos, function(pallet)
-        SetEntityHeading(pallet, Config.Zones.Drop.Heading)
+    ESX.Game.SpawnObject(prop, Player.Drop.Pos, function(pallet)
+        SetEntityHeading(pallet, Player.Drop.Heading)
         PlaceObjectOnGroundProperly(pallet)
     
         Wait(250)
     
-        Config.Zones.Drop.Bounds = Utils.GetEntityBounds(pallet)
+        Player.Drop.Bounds = Utils.GetEntityBounds(pallet)
 
         Wait(250)
 
@@ -301,7 +300,7 @@ end
 
 function ValidDrop()
     local offset = 1.0
-    local angle = math.abs(Config.Zones.Drop.Heading - Player.Pallet.Heading)
+    local angle = math.abs(Player.Drop.Heading - Player.Pallet.Heading)
 
     local correctAngle = false
     if angle < offset or angle - 180 < offset then
@@ -351,6 +350,7 @@ function RemoveBlips()
     end
 end
 
+
 -------------------------------
 --          THREADS          --
 -------------------------------
@@ -370,6 +370,7 @@ Citizen.CreateThread(function()
                     Populate()
                 end
             end
+
         end
         Citizen.Wait(100)
     end
@@ -378,7 +379,7 @@ end)
 Citizen.CreateThread(function()
     while true do
         if Ready and Player.Authorized then
-            if Player.Working and Player.Pallet then
+            if Player.Working and Player.Drop then
                 Player.Pallet.Heading = GetEntityHeading(Player.Pallet.Entity)
                 Player.Pallet.Lifted = IsEntityInAir(Player.Pallet.Entity)
                 Player.AtPallet = IsEntityAtEntity(Player.FLT.Entity, Player.Pallet.Entity, 3.0, 3.0, 3.0, 0, 1, 0)
@@ -419,29 +420,29 @@ end)
 -- On-screen Message Thread
 Citizen.CreateThread(function()
     while true do
-        if Ready then
-            if Message ~= nil and Message.Display then
-                if Message.Type == 'delivered' then
-                    Message.Title = 'Pallet Delivered'
-                    Message.SubTitle = Player.Delivered .. ' Pallets Delivered'
-                elseif Message.Type == 'pickup' then
-                    Message.Title = 'Collection Ready'
-                    Message.SubTitle = 'Go to the collection point'
-                elseif Message.Type == 'dropoff' then
-                    Message.Title = 'Deliver The Pallet'
-                    Message.SubTitle = 'Take the pallet to the drop-off point'
-                end
-
-                Utils.RenderText(Message.Title, 7, 0.5, 0.25, 1.50, 238, 238, 0, 255)
-                Utils.RenderText(Message.SubTitle, 4, 0.5, 0.33, 0.5)
-
-                Citizen.SetTimeout(3000, function()
-                    Message.Type = nil
-                    Message.Title = nil
-                    Message.Message = nil
-                    Message.Display = false
-                end)
+        if Message.Display then
+            if Message.Type == 'delivered' then
+                Message.Title = 'Pallet Delivered'
+                Message.SubTitle = Player.Delivered .. ' Pallets Delivered'
+            elseif Message.Type == 'pickup' then
+                Message.Title = 'Collection Ready'
+                local var1, var2 = GetStreetNameAtCoord(Player.Pallet.InitCoords.x, Player.Pallet.InitCoords.y, Player.Pallet.InitCoords.z, Citizen.ResultAsInteger(), Citizen.ResultAsInteger())
+                Message.SubTitle = 'Go to the collection point at ' .. GetStreetNameFromHashKey(var1)
+            elseif Message.Type == 'dropoff' then
+                Message.Title = 'Deliver The Pallet'
+                local var1, var2 = GetStreetNameAtCoord(Player.Drop.Pos.x, Player.Drop.Pos.y, Player.Drop.Pos.z, Citizen.ResultAsInteger(), Citizen.ResultAsInteger())
+                Message.SubTitle = 'Take the pallet to ' .. GetStreetNameFromHashKey(var1)
             end
+
+            Utils.RenderText(Message.Title, 7, 0.5, 0.25, 1.50, 238, 238, 0, 255)
+            Utils.RenderText(Message.SubTitle, 4, 0.5, 0.33, 0.5)
+
+            Citizen.SetTimeout(3000, function()
+                Message.Type = nil
+                Message.Title = nil
+                Message.Message = nil
+                Message.Display = false
+            end)
         end
         Citizen.Wait(0)
     end
@@ -467,12 +468,12 @@ Citizen.CreateThread(function()
                     end
                 end
 
-                if Player.Pallet and Player.Pallet.PickedUp then
+                if Player.Drop and Player.Drop.PickedUp then
                     -- Delivery Point Ghost
-                    Utils.DrawBox(Config.Zones.Drop.Bounds[1], Config.Zones.Drop.Bounds[2], Config.Zones.Drop.Bounds[4], Config.Zones.Drop.Bounds[3], 238, 238, 0, 100)
+                    Utils.DrawBox(Player.Drop.Bounds[1], Player.Drop.Bounds[2], Player.Drop.Bounds[4], Player.Drop.Bounds[3], 238, 238, 0, 100)
 
                     -- Delivery Point Marker
-                    DrawMarker(Config.Zones.Drop.Type, vector3(Config.Zones.Drop.Pos.x, Config.Zones.Drop.Pos.y, Config.Zones.Drop.Pos.z + 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Drop.Size.x, Config.Zones.Drop.Size.y, Config.Zones.Drop.Size.z, Config.Zones.Drop.Color.r, Config.Zones.Drop.Color.g, Config.Zones.Drop.Color.b, 100, true, true, 2, false, nil, nil, false)
+                    DrawMarker(0, vector3(Player.Drop.Pos.x, Player.Drop.Pos.y, Player.Drop.Pos.z + 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Return.Size.x, Config.Zones.Return.Size.y, Config.Zones.Return.Size.z, Config.Zones.Return.Color.r, Config.Zones.Return.Color.g, Config.Zones.Return.Color.b, 100, true, true, 2, false, nil, nil, false)
                 end
             end
         end       
@@ -485,11 +486,9 @@ end)
 Citizen.CreateThread(function()
     while true do
         if Ready and Player.Authorized then
-            if Player.Working and Config.Zones.Drop.Pos ~= nil then
+            if Player.Working and Player.Drop then
                 local pcoords = GetEntityCoords(Player.Pallet.Entity) 
-                local pdist = #(Config.Zones.Drop.Pos - pcoords) 
-
-                Config.Zones.Pickup.Pos = pcoords
+                local pdist = #(Player.Drop.Pos - pcoords) 
                 
                 if not Player.Pallet.Ready then
                     if pdist < 50 then
@@ -507,7 +506,7 @@ Citizen.CreateThread(function()
                     end   
                 else
                     if not Player.AtPallet then
-                        DrawMarker(Config.Zones.Pickup.Type, vector3(Config.Zones.Pickup.Pos.x, Config.Zones.Pickup.Pos.y, Config.Zones.Pickup.Pos.z + 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Pickup.Size.x, Config.Zones.Pickup.Size.y, Config.Zones.Pickup.Size.z, Config.Zones.Pickup.Color.r, Config.Zones.Pickup.Color.g, Config.Zones.Pickup.Color.b, 100, true, true, 2, false, nil, nil, false)
+                        DrawMarker(0, vector3(pcoords.x, pcoords.y, pcoords.z + 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Return.Size.x, Config.Zones.Return.Size.y, Config.Zones.Return.Size.z, Config.Zones.Return.Color.r, Config.Zones.Return.Color.g, Config.Zones.Return.Color.b, 100, true, true, 2, false, nil, nil, false)
                     end                
                 end                
             end                
@@ -515,6 +514,7 @@ Citizen.CreateThread(function()
         Citizen.Wait(0)
     end
 end)
+
 
 -- Zone Thread
 Citizen.CreateThread(function()
@@ -551,19 +551,18 @@ Citizen.CreateThread(function()
                     Hint.Message = _U('return_flt')
                 end  
                     
-                if Player.Working and Config.Zones.Drop.Pos ~= nil then
-                    if Player.Pallet.Lifted and not Player.Pallet.PickedUp then
-                        Player.Pallet.PickedUp = true
-
-                        AddPalletBlip(Config.Zones.Drop)
+                if Player.Working and Player.Drop then
+                    if Player.Pallet.Lifted and not Player.Drop.PickedUp then
+                        Player.Drop.PickedUp = true
+                        AddPalletBlip(Player.Drop)
                         
                         DisplayMessage('dropoff')
                     end
                 end
             end
 
-            if Hint.Display then
-                if IsControlJustReleased(0, 38) then
+            if IsControlJustReleased(0, 38) then
+                if Hint.Display then
                     if Hint.Zone == 'Locker' then
                         OpenFLTMenu()
                     elseif Hint.Zone == 'Garage' then
@@ -571,7 +570,7 @@ Citizen.CreateThread(function()
                     elseif Hint.Zone == 'Return' then
                         StoreFLT()
                     end
-                end            
+                end
             end            
         end
 
@@ -655,9 +654,6 @@ function OpenFLTMenu()
         elseif data.current.value == 'work_wear' then
             Player.OnDuty = true
             ESX.TriggerServerCallback('esx_skin:getPlayerSkin', function(skin, jobSkin)
-
-                Player.Data.Skin = skin  
-
                 if skin.sex == 0 then
                     TriggerEvent('skinchanger:loadClothes', skin, jobSkin.skin_male)
                 else
@@ -697,17 +693,12 @@ function Reset(force)
     Player.Pallet = false
     Player.InRange = false
     Player.Delivered = 0
-
-    Message = {}
-    Message.Type = nil
-    Message.Display = false
-    Message.Ready = true
-    Message.Title = nil
-    Message.Message = nil
     
     Hint.Display = false
     Hint.Zone = false
     Hint.Message = false
+    
+    Message = false
 end
 
 -- Reset collectables on resource stop
@@ -716,12 +707,10 @@ AddEventHandler('onResourceStop', function(resource)
 
         Reset(true)
 
-        if Config.Population.Enabled and Config.Population.Populated then
-            for k, v in pairs(Config.Population.Peds) do
-                DeleteEntity(v.Ped)
+        if #PROPS > 0 then
+            for k, v in pairs(PROPS) do
+                DeleteEntity(v)
             end
-
-            DeleteObject(Config.Population.Radio.Entity)
         end
 
         if Config.Debug then
