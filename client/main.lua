@@ -1,6 +1,7 @@
 ESX = nil
 
 Ready = false
+Stop = true
 
 Player = {}
 Player.Data = nil
@@ -16,16 +17,12 @@ Hint.Display = false
 Hint.Zone = false
 Hint.Message = false
 
-Points = nil
-
 Message = {}
 Message.Type = nil
 Message.Display = false
 Message.Ready = true
 Message.Title = nil
 Message.Message = nil
-
-Populated = false
 
 PROPS = {}
 
@@ -51,27 +48,15 @@ Citizen.CreateThread(function()
     end
 end)
 
-RegisterNetEvent('esx:playerLoaded')
-AddEventHandler('esx:playerLoaded', function(xPlayer)
-    Player.Data = xPlayer
-
-    if Player.Data.job.name == 'flt' then
-        Player.Authorized = true
-        InitFLTJob()
-    end
-end)
-
 RegisterNetEvent('esx:setJob')
 AddEventHandler('esx:setJob', function(job)
+    print(job.name)
     if job.name == 'flt' then
+        Player.Data = ESX.GetPlayerData()
         Player.Data.job = job
-        Player.OnDuty = false
-        Player.Authorized = true
         InitFLTJob()
     else
-        RemoveBlips()
-        Ready = false
-        Authorized = false
+        StopJob()
     end
 end)
 
@@ -82,8 +67,12 @@ function InitFLTJob()
             Player.Data = xPlayer
             Player.Ped = PlayerPedId()
             Player.Pos = GetEntityCoords(Player.Ped)
+            Player.OnDuty = false
+            Player.Authorized = true            
             Ready = true
+            Stop = false
         
+            InitThreads()
             UpdateBlips()
         end
     end)    
@@ -102,9 +91,9 @@ function SpawnPallet()
     if not Player.Pallet then
         Player.Pallet = {}
 
-        GetSpawnPoints()
+        local Points = GetSpawnPoints()
 
-        local Pickup = Config.Drops[Points[1]]
+        local Pickup = Points[1]
         local prop = Config.Props[ math.random( #Config.Props ) ]
 
         ESX.Game.SpawnObject(prop, Pickup.Pos, function(pallet)
@@ -117,7 +106,7 @@ function SpawnPallet()
             Player.Pallet.Entity = pallet
             Player.Pallet.InitCoords = GetEntityCoords(pallet)
 
-            Player.Drop = Config.Drops[Points[2]] 
+            Player.Drop = Points[2]
 
             DrawDropOffPoint(prop)
 
@@ -125,11 +114,11 @@ function SpawnPallet()
 
             DisplayMessage('pickup')
 
-            PlaySoundFrontend(-1, "Start_Squelch", "CB_RADIO_SFX", 1);
+        PlaySoundFrontend(-1, "Start_Squelch", "CB_RADIO_SFX", 1);
 
-            Citizen.Wait(1000)
-    
-            PlaySoundFrontend(-1, "End_Squelch", "CB_RADIO_SFX", 1)
+        Citizen.Wait(1000)
+
+        PlaySoundFrontend(-1, "End_Squelch", "CB_RADIO_SFX", 1)
         end)
     end
 end
@@ -142,7 +131,7 @@ function RemovePallet()
         RemoveBlip(Player.Drop.Blip)
 
         Player.Pallet = false
-        Player.Drop = false
+        Player.Drop = nil
         Player.AtPallet = false
     end
 end
@@ -193,40 +182,36 @@ function DrawDropOffPoint(prop)
         Wait(250)
 
         ESX.Game.DeleteObject(pallet)
+
+        local pedPos = Utils.TranslateVector(Player.Drop.Pos, Player.Drop.Heading - 90, 2.2)
+
+        RequestModel( 0x867639D1 )
+        while ( not HasModelLoaded( 0x867639D1 ) ) do
+            Wait( 1 )
+        end
+    
+        local ped = CreatePed('PED_TYPE_CIVMALE', 0x867639D1, pedPos.x, pedPos.y, pedPos.z, Player.Drop.Heading, false, false)
+        TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_CLIPBOARD', 0, true)      
+        
+        Player.Drop.Ped = ped
     end)
 end
 
 function GetSpawnPoints()
-    points = {}
-    math.randomseed( GetGameTimer() )
+    math.randomseed(GetGameTimer())
+    local shuffled = {}
+    local points = {}
+
+    for i, v in ipairs(Config.Drops) do
+        local pos = math.random(1, #shuffled+1)
+        table.insert(shuffled, pos, v)
+    end 
+
     for i = 1, 2 do
-        local point = math.random( #Config.Drops )
-
-        -- Check Point 1 for Duplicate
-        if Points ~= nil and i == 1 then
-            while point == points[2] do
-                point = math.random( #Config.Drops )
-            end
-        end
-
-        -- Check Point 2 for Duplicate
-        if Points ~= nil and i == 2 then
-            while point == points[1] do
-                point = math.random( #Config.Drops )
-            end
-        end
-
-        -- Check Point for Duplicate to last
-        if Points ~= nil then
-            while point == Points[i] do
-                point = math.random( #Config.Drops )
-            end
-        end
-
-        table.insert(points, point)
+        table.insert(points, shuffled[i])
     end
 
-    Points = points
+    return points
 end
 
 function DisplayMessage(type)
@@ -299,6 +284,9 @@ function StoreFLT(force)
 end
 
 function ValidDrop()
+    if not Player.Drop.PickedUp then
+        return false
+    end
     local offset = 1.0
     local angle = math.abs(Player.Drop.Heading - Player.Pallet.Heading)
 
@@ -355,273 +343,334 @@ end
 --          THREADS          --
 -------------------------------
 
--- Player Position Thread
-Citizen.CreateThread(function()
-    while true do
-        if Ready and Player.Authorized then
-            if not Player.Ped or ( Player.Ped and Player.Ped ~= PlayerPedId() ) then
-                Player.Ped = PlayerPedId()
-            end
-            Player.Pos = GetEntityCoords(Player.Ped)
+function InitThreads()
+    StartPositionThread()
+    StartPalletThread()
+    StartInteractionThread()
+    StartMessageThread()
+    StartMarkerThread()
+    StartDeliveryThread()
+    StartZoneThread()
+    StartNotificationThread()
+    
+    if Config.Debug then
+        StartDebugThread()
+    end
+end
 
-            -- Spawn peds and props when close
-            if Config.Population.Enabled and not Config.Population.Populated then
-                if #(Config.Zones.Locker.Pos - Player.Pos) < 50 then
-                    Populate()
+-- Player Position Thread
+function StartPositionThread()
+    Citizen.CreateThread(function()
+        while true do
+            if Ready and Player.Authorized then
+                if not Player.Ped or ( Player.Ped and Player.Ped ~= PlayerPedId() ) then
+                    Player.Ped = PlayerPedId()
+                end
+                Player.Pos = GetEntityCoords(Player.Ped)
+    
+                -- Spawn peds and props when close
+                if Config.Population.Enabled and not Config.Population.Populated then
+                    if #(Config.Zones.Locker.Pos - Player.Pos) < 50 then
+                        Populate()
+                    end
+                end
+    
+            end
+    
+            if Stop then
+                return
+            end
+    
+            Citizen.Wait(100)
+        end
+    end)    
+end
+
+-- Pallet Thread
+function StartPalletThread()
+    Citizen.CreateThread(function()
+        while true do
+            if Ready and Player.Authorized then
+                if Player.Working and Player.Drop ~= nil then
+                    Player.Pallet.Heading = GetEntityHeading(Player.Pallet.Entity)
+                    Player.Pallet.Lifted = IsEntityInAir(Player.Pallet.Entity)
+                    Player.AtPallet = IsEntityAtEntity(Player.FLT.Entity, Player.Pallet.Entity, 3.0, 3.0, 3.0, 0, 1, 0)
                 end
             end
-
+            if Stop then
+                return
+            end        
+            Citizen.Wait(0)
         end
-        Citizen.Wait(100)
-    end
-end)
-
-Citizen.CreateThread(function()
-    while true do
-        if Ready and Player.Authorized then
-            if Player.Working and Player.Drop then
-                Player.Pallet.Heading = GetEntityHeading(Player.Pallet.Entity)
-                Player.Pallet.Lifted = IsEntityInAir(Player.Pallet.Entity)
-                Player.AtPallet = IsEntityAtEntity(Player.FLT.Entity, Player.Pallet.Entity, 3.0, 3.0, 3.0, 0, 1, 0)
-            end
-        end
-        Citizen.Wait(0)
-    end
-end)
+    end)
+end
 
 -- FLT Interaction Thread
-Citizen.CreateThread(function()
-    while true do
-        Citizen.Wait(1)
+function StartInteractionThread()
+    Citizen.CreateThread(function()
+        while true do
+            Citizen.Wait(1)
 
-        if Ready and Player.Authorized then
-            if Player.FLT then
-                if not IsPedSittingInVehicle(Player.Ped, Player.FLT.Entity) then
-                    Player.FLT.Active = false
+            if Ready and Player.Authorized then
+                if Player.FLT then
+                    if not IsPedSittingInVehicle(Player.Ped, Player.FLT.Entity) then
+                        Player.FLT.Active = false
 
-                    AddFLTBlip()
-                    RemoveBlip(Config.Zones.Return.Blip)
-                else
-                    if Player.FLT.Blip then
-                        UpdateBlips()
-                        RemoveBlip(Player.FLT.Blip)
-                    end
-                    Player.FLT.Active = true
+                        AddFLTBlip()
+                        RemoveBlip(Config.Zones.Return.Blip)
+                    else
+                        if Player.FLT.Blip then
+                            UpdateBlips()
+                            RemoveBlip(Player.FLT.Blip)
+                        end
+                        Player.FLT.Active = true
 
-                    if not Player.Working then
-                        StartWork()
+                        if not Player.Working then
+                            StartWork()
+                        end
                     end
                 end
             end
+
+            if Stop then
+                return
+            end        
         end
-    end
-end)
+    end)
+end
 
 -- On-screen Message Thread
-Citizen.CreateThread(function()
-    while true do
-        if Message.Display then
-            if Message.Type == 'delivered' then
-                Message.Title = 'Pallet Delivered'
-                Message.SubTitle = Player.Delivered .. ' Pallets Delivered'
-            elseif Message.Type == 'pickup' then
-                Message.Title = 'Collection Ready'
-                local var1, var2 = GetStreetNameAtCoord(Player.Pallet.InitCoords.x, Player.Pallet.InitCoords.y, Player.Pallet.InitCoords.z, Citizen.ResultAsInteger(), Citizen.ResultAsInteger())
-                Message.SubTitle = 'Go to the collection point at ' .. GetStreetNameFromHashKey(var1)
-            elseif Message.Type == 'dropoff' then
-                Message.Title = 'Deliver The Pallet'
-                local var1, var2 = GetStreetNameAtCoord(Player.Drop.Pos.x, Player.Drop.Pos.y, Player.Drop.Pos.z, Citizen.ResultAsInteger(), Citizen.ResultAsInteger())
-                Message.SubTitle = 'Take the pallet to ' .. GetStreetNameFromHashKey(var1)
+function StartMessageThread()
+    Citizen.CreateThread(function()
+        while true do
+            if Ready and Player.Authorized then
+                if Message and Message.Display then
+                    if Message.Type == 'delivered' then
+                        Message.Title = 'Pallet Delivered'
+                        Message.SubTitle = Player.Delivered .. ' Pallets Delivered'
+                    elseif Message.Type == 'pickup' then
+                        Message.Title = 'Collection Ready'
+                        Message.SubTitle = 'Go to the collection point'
+                    elseif Message.Type == 'dropoff' then
+                        Message.Title = 'Deliver The Pallet'
+                        Message.SubTitle = 'Take the pallet to the drop-off point'
+                    end
+
+                    Utils.RenderText(Message.Title, 7, 0.5, 0.25, 1.50, 238, 238, 0, 255)
+                    Utils.RenderText(Message.SubTitle, 4, 0.5, 0.33, 0.5)
+
+                    Citizen.SetTimeout(3000, function()
+                        Message.Type = nil
+                        Message.Title = nil
+                        Message.Message = nil
+                        Message.Display = false
+                    end)
+                end
             end
-
-            Utils.RenderText(Message.Title, 7, 0.5, 0.25, 1.50, 238, 238, 0, 255)
-            Utils.RenderText(Message.SubTitle, 4, 0.5, 0.33, 0.5)
-
-            Citizen.SetTimeout(3000, function()
-                Message.Type = nil
-                Message.Title = nil
-                Message.Message = nil
-                Message.Display = false
-            end)
+            if Stop then
+                return
+            end        
+            Citizen.Wait(0)
         end
-        Citizen.Wait(0)
-    end
-end)
+    end)
+end
 
 -- Markers Thread
-Citizen.CreateThread(function()
-    while true do
-        if Ready and Player.Authorized then
-            if #(Config.Zones.Locker.Pos - Player.Pos) <= Config.DrawDistance then
-                -- Locker Room Marker
-                DrawMarker(Config.Zones.Locker.Type, Config.Zones.Locker.Pos, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Locker.Size.x, Config.Zones.Locker.Size.y, Config.Zones.Locker.Size.z, Config.Zones.Locker.Color.r, Config.Zones.Locker.Color.g, Config.Zones.Locker.Color.b, 100, false, true, 2, false, nil, nil, false)
-            end
+function StartMarkerThread()
+    Citizen.CreateThread(function()
+        while true do
+            if Ready and Player.Authorized then
+                if #(Config.Zones.Locker.Pos - Player.Pos) <= Config.DrawDistance then
+                    -- Locker Room Marker
+                    DrawMarker(Config.Zones.Locker.Type, Config.Zones.Locker.Pos, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Locker.Size.x, Config.Zones.Locker.Size.y, Config.Zones.Locker.Size.z, Config.Zones.Locker.Color.r, Config.Zones.Locker.Color.g, Config.Zones.Locker.Color.b, 100, false, true, 2, false, nil, nil, false)
+                end
 
-            if Player.OnDuty then
-                if not Player.FLT then
-                    -- FLT Garage Marker
-                    DrawMarker(Config.Zones.Garage.Type, Config.Zones.Garage.Pos, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Garage.Size.x, Config.Zones.Garage.Size.y, Config.Zones.Garage.Size.z, Config.Zones.Garage.Color.r, Config.Zones.Garage.Color.g, Config.Zones.Garage.Color.b, 100, false, true, 2, false, nil, nil, false)
-                else
-                    if Player.FLT.Active then
-                        -- FLT Return Marker
-                        DrawMarker(Config.Zones.Return.Type, Config.Zones.Return.Pos, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Return.Size.x, Config.Zones.Return.Size.y, Config.Zones.Return.Size.z, Config.Zones.Return.Color.r, Config.Zones.Return.Color.g, Config.Zones.Return.Color.b, 100, false, true, 2, false, nil, nil, false)
+                if Player.OnDuty then
+                    if not Player.FLT then
+                        -- FLT Garage Marker
+                        DrawMarker(Config.Zones.Garage.Type, Config.Zones.Garage.Pos, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Garage.Size.x, Config.Zones.Garage.Size.y, Config.Zones.Garage.Size.z, Config.Zones.Garage.Color.r, Config.Zones.Garage.Color.g, Config.Zones.Garage.Color.b, 100, false, true, 2, false, nil, nil, false)
+                    else
+                        if Player.FLT.Active then
+                            -- FLT Return Marker
+                            DrawMarker(Config.Zones.Return.Type, Config.Zones.Return.Pos, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Return.Size.x, Config.Zones.Return.Size.y, Config.Zones.Return.Size.z, Config.Zones.Return.Color.r, Config.Zones.Return.Color.g, Config.Zones.Return.Color.b, 100, false, true, 2, false, nil, nil, false)
+                        end
+                    end
+
+                    if Player.Drop ~= nil and Player.Drop.PickedUp then
+                        -- Delivery Point Ghost
+                        Utils.DrawBox(Player.Drop.Bounds[1], Player.Drop.Bounds[2], Player.Drop.Bounds[4], Player.Drop.Bounds[3], 238, 238, 0, 100)
+
+                        -- Delivery Point Marker
+                        DrawMarker(0, vector3(Player.Drop.Pos.x, Player.Drop.Pos.y, Player.Drop.Pos.z + 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Return.Size.x, Config.Zones.Return.Size.y, Config.Zones.Return.Size.z, Config.Zones.Return.Color.r, Config.Zones.Return.Color.g, Config.Zones.Return.Color.b, 100, true, true, 2, false, nil, nil, false)
                     end
                 end
-
-                if Player.Drop and Player.Drop.PickedUp then
-                    -- Delivery Point Ghost
-                    Utils.DrawBox(Player.Drop.Bounds[1], Player.Drop.Bounds[2], Player.Drop.Bounds[4], Player.Drop.Bounds[3], 238, 238, 0, 100)
-
-                    -- Delivery Point Marker
-                    DrawMarker(0, vector3(Player.Drop.Pos.x, Player.Drop.Pos.y, Player.Drop.Pos.z + 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Return.Size.x, Config.Zones.Return.Size.y, Config.Zones.Return.Size.z, Config.Zones.Return.Color.r, Config.Zones.Return.Color.g, Config.Zones.Return.Color.b, 100, true, true, 2, false, nil, nil, false)
-                end
+            end       
+            if Stop then
+                return
             end
-        end       
-
-        Citizen.Wait(0)
-    end
-end)
+            Citizen.Wait(0)
+        end
+    end)
+end
 
 -- Delivery Thread
-Citizen.CreateThread(function()
-    while true do
-        if Ready and Player.Authorized then
-            if Player.Working and Player.Drop then
-                local pcoords = GetEntityCoords(Player.Pallet.Entity) 
-                local pdist = #(Player.Drop.Pos - pcoords) 
-                
-                if not Player.Pallet.Ready then
-                    if pdist < 50 then
-                        Player.Pallet.Ready = true
+function StartDeliveryThread()
+    Citizen.CreateThread(function()
+        while true do
+            if Ready and Player.Authorized then
+                if Player.Working and Player.Drop ~= nil then
+                    local pcoords = GetEntityCoords(Player.Pallet.Entity) 
+                    local pdist = #(Player.Drop.Pos - pcoords) 
+                    
+                    if not Player.Pallet.Ready then
+                        if pdist < 50 then
+                            Player.Pallet.Ready = true
 
-                        -- If pallet is far from player, collisions might not be loaded so it'll fall through floor
-                        PlaceObjectOnGroundProperly(Player.Pallet.Entity)
+                            -- If pallet is far from player, collisions might not be loaded so it'll fall through floor
+                            PlaceObjectOnGroundProperly(Player.Pallet.Entity)
+                        end
                     end
-                end
 
-                -- Only do checks if player is close
-                if pdist <= 0.5 then      
-                    if ValidDrop() then
-                        DeliverPallet()
-                    end   
-                else
-                    if not Player.AtPallet then
-                        DrawMarker(0, vector3(pcoords.x, pcoords.y, pcoords.z + 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Return.Size.x, Config.Zones.Return.Size.y, Config.Zones.Return.Size.z, Config.Zones.Return.Color.r, Config.Zones.Return.Color.g, Config.Zones.Return.Color.b, 100, true, true, 2, false, nil, nil, false)
-                    end                
+                    -- Only do checks if player is close
+                    if pdist <= 0.5 then      
+                        if ValidDrop() then
+                            DeliverPallet()
+                        end   
+                    else
+                        if not Player.AtPallet then
+                            DrawMarker(0, vector3(pcoords.x, pcoords.y, pcoords.z + 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Return.Size.x, Config.Zones.Return.Size.y, Config.Zones.Return.Size.z, Config.Zones.Return.Color.r, Config.Zones.Return.Color.g, Config.Zones.Return.Color.b, 100, true, true, 2, false, nil, nil, false)
+                        end                
+                    end 
                 end                
-            end                
+            end
+            if Stop then
+                return
+            end        
+            Citizen.Wait(0)
         end
-        Citizen.Wait(0)
-    end
-end)
-
+    end)
+end
 
 -- Zone Thread
-Citizen.CreateThread(function()
-    while true do
-        if Ready and Player.Authorized then
+function StartZoneThread()
+    Citizen.CreateThread(function()
+        while true do
+            if Ready and Player.Authorized then
 
-            Hint.Zone = false
-            Hint.Display = false
-            Hint.Message = false                
+                Hint.Zone = false
+                Hint.Display = false
+                Hint.Message = false                
 
-            if #(Config.Zones.Locker.Pos - Player.Pos) <= Config.DrawDistance then
-                local crdist = #(Config.Zones.Locker.Pos - Player.Pos) 
+                if #(Config.Zones.Locker.Pos - Player.Pos) <= Config.DrawDistance then
+                    local crdist = #(Config.Zones.Locker.Pos - Player.Pos) 
 
-                if crdist <= Config.Zones.Locker.Size.x then
-                    Hint.Zone = 'Locker'
-                    Hint.Display = true
-                    Hint.Message = _U('change_clothes')
+                    if crdist <= Config.Zones.Locker.Size.x then
+                        Hint.Zone = 'Locker'
+                        Hint.Display = true
+                        Hint.Message = _U('change_clothes')
+                    end
                 end
-            end
 
-            if Player.OnDuty then
-                local grdist = #(Config.Zones.Garage.Pos - Player.Pos) 
-                local rtdist = #(Config.Zones.Return.Pos - Player.Pos) 
+                if Player.OnDuty then
+                    local grdist = #(Config.Zones.Garage.Pos - Player.Pos) 
+                    local rtdist = #(Config.Zones.Return.Pos - Player.Pos) 
 
-                if grdist <= Config.Zones.Garage.Size.x and not Player.FLT then
-                    Hint.Zone = 'Garage'
-                    Hint.Display = true
-                    Hint.Message = _U('enter_flt')
-                end
-                    
-                if rtdist <= Config.Zones.Garage.Size.x and Player.FLT and Player.FLT.Active then
-                    Hint.Zone = 'Return'
-                    Hint.Display = true
-                    Hint.Message = _U('return_flt')
-                end  
-                    
-                if Player.Working and Player.Drop then
-                    if Player.Pallet.Lifted and not Player.Drop.PickedUp then
-                        Player.Drop.PickedUp = true
-                        AddPalletBlip(Player.Drop)
+                    if grdist <= Config.Zones.Garage.Size.x and not Player.FLT then
+                        Hint.Zone = 'Garage'
+                        Hint.Display = true
+                        Hint.Message = _U('enter_flt')
+                    end
                         
-                        DisplayMessage('dropoff')
+                    if rtdist <= Config.Zones.Garage.Size.x and Player.FLT and Player.FLT.Active then
+                        Hint.Zone = 'Return'
+                        Hint.Display = true
+                        Hint.Message = _U('return_flt')
+                    end  
+                        
+                    if Player.Working and Player.Drop ~= nil then
+                        if Player.Pallet.Lifted and not Player.Drop.PickedUp then
+                            Player.Drop.PickedUp = true
+                            AddPalletBlip(Player.Drop)
+                            
+                            DisplayMessage('dropoff')
+                        end
                     end
                 end
+
+                if IsControlJustReleased(0, 38) then
+                    if Hint.Display then
+                        if Hint.Zone == 'Locker' then
+                            OpenFLTMenu()
+                        elseif Hint.Zone == 'Garage' then
+                            SpawnFLT()
+                        elseif Hint.Zone == 'Return' then
+                            StoreFLT()
+                        end
+                    end
+                end            
             end
-
-            if IsControlJustReleased(0, 38) then
-                if Hint.Display then
-                    if Hint.Zone == 'Locker' then
-                        OpenFLTMenu()
-                    elseif Hint.Zone == 'Garage' then
-                        SpawnFLT()
-                    elseif Hint.Zone == 'Return' then
-                        StoreFLT()
-                    end
-                end
-            end            
+            if Stop then
+                return
+            end
+            Citizen.Wait(0)
         end
-
-        Citizen.Wait(0)
-    end
-end)
+    end)
+end
 
 -- Notification Thread
-Citizen.CreateThread(function()
-    while true do
-        if Ready and Player.Authorized then
-            if Hint.Display and Hint.Message then
-                ESX.ShowHelpNotification(Hint.Message, 3000)
+function StartNotificationThread()
+    Citizen.CreateThread(function()
+        while true do
+            if Ready and Player.Authorized then
+                if Hint.Display and Hint.Message then
+                    ESX.ShowHelpNotification(Hint.Message, 3000)
+                end
             end
+            if Stop then
+                return
+            end        
+            Citizen.Wait(1)
         end
-        Citizen.Wait(1)
-    end
-end)
+    end)
+end
 
 -- Debug Thread
-Citizen.CreateThread(function()
-    while true do
-        if Ready and Config.Debug then
-            for k, Drop in pairs(Config.Drops) do
-                if not Drop.Entity then
-                    ESX.Game.SpawnObject('prop_boxpile_07d', Drop.Pos, function(pallet)
-                        SetEntityHeading(pallet, Drop.Heading)
-                        PlaceObjectOnGroundProperly(pallet)
-    
-                        Wait(250)
-    
-                        Drop.Entity = pallet
-    
-                        Drop.Bounds = Utils.GetEntityBounds(pallet)
+function StartDebugThread()
+    Citizen.CreateThread(function()
+        while true do
+            if Ready and Config.Debug then
+                for k, Drop in pairs(Config.Drops) do
+                    if not Drop.Entity then
+                        ESX.Game.SpawnObject('prop_boxpile_06a', Drop.Pos, function(pallet)
+                            SetEntityHeading(pallet, Drop.Heading)
+                            PlaceObjectOnGroundProperly(pallet)
+        
+                            Wait(250)
+        
+                            Drop.Entity = pallet
+        
+                            Drop.Bounds = Utils.GetEntityBounds(pallet)
 
-                        Wait(250)
+                            Wait(250)
 
-                        ESX.Game.DeleteObject(pallet)
-                    end)
-                else
-                    if #(Player.Pos - Drop.Pos) < 100 then
-                        Utils.DrawBox(Drop.Bounds[1], Drop.Bounds[2], Drop.Bounds[4], Drop.Bounds[3], 238, 238, 0, 100)
+                            ESX.Game.DeleteObject(pallet)
+                        end)
+                    else
+                        if #(Player.Pos - Drop.Pos) < 50 then
+                            Utils.DrawBox(Drop.Bounds[1], Drop.Bounds[2], Drop.Bounds[4], Drop.Bounds[3], 238, 238, 0, 100)
 
-                        -- ESX.Game.Utils.DrawText3D(Drop.Pos, Drop.Pos.x .. ' | ' .. Drop.Pos.y .. ' | ' .. Drop.Heading, 1.00)
+                            -- ESX.Game.Utils.DrawText3D(Drop.Pos, Drop.Pos.x .. ' | ' .. Drop.Pos.y .. ' | ' .. Drop.Heading, 1.00)
+                        end
                     end
-                end
-            end          
+                end          
+            end
+            if Stop then
+                return
+            end        
+            Citizen.Wait(0)
         end
-        Citizen.Wait(0)
-    end
-end)
+    end)
+end
 
 ----------------------------
 --          MENU          --
@@ -704,15 +753,34 @@ end
 -- Reset collectables on resource stop
 AddEventHandler('onResourceStop', function(resource)
     if resource == GetCurrentResourceName() then
+        StopJob()       
+    end
+end)
 
+function StopJob()
+    if Ready then
         Reset(true)
 
-        if #PROPS > 0 then
-            for k, v in pairs(PROPS) do
-                DeleteEntity(v)
+        RemoveBlips()        
+
+        if Config.Debug then
+            SetEntityCoords(Player.Ped, Config.Zones.Locker.Pos.x, Config.Zones.Locker.Pos.y, Config.Zones.Locker.Pos.z, 1, 0, 0, 1)
+        end        
+
+        -- Remove peds
+        for k, v in pairs(Config.Population.Peds) do
+            if v.Ped then
+                DeleteEntity(v.Ped)
             end
         end
 
+        -- Remove radio
+        if Config.Population.Radio.Entity then
+            DeleteObject(Config.Population.Radio.Entity)
+        end
+
+        Config.Population.Populated = false
+        
         if Config.Debug then
             -- SetEntityCoords(Player.Ped, Config.Zones.Locker.Pos.x, Config.Zones.Locker.Pos.y, Config.Zones.Locker.Pos.z, 1, 0, 0, 1)
             for k, Drop in pairs(Config.Drops) do
@@ -721,9 +789,13 @@ AddEventHandler('onResourceStop', function(resource)
                     Drop.Entity = false
                 end
             end
-        end        
-    end
-end)
+        end 
+        
+
+        Ready = false
+        Stop = true
+    end 
+end
 
 function Populate()
     for k, v in pairs(Config.Population.Peds) do
@@ -757,3 +829,17 @@ function Populate()
     
     Config.Population.Populated = true
 end
+
+-- Citizen.CreateThread(function()
+--     while true do
+--         if Ready then
+--             local helmet_1, helmet_2 = GetPedPropIndex(Player.Ped, 0), GetPedPropTextureIndex(Player.Ped, 0)
+--             local glasses_1, glasses_2 = GetPedPropIndex(Player.Ped, 1), GetPedPropTextureIndex(Player.Ped, 1)
+--             local trousers = GetPedDrawableVariation(Player.Ped, 4)
+--             local torso = GetPedDrawableVariation(Player.Ped, 11)
+--             local hands = GetPedDrawableVariation(Player.Ped, 3)
+--             print(hands)
+--         end
+--         Citizen.Wait(100)
+--     end
+-- end)

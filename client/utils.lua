@@ -51,6 +51,13 @@ Utils.DrawBox = function(p1, p2, p3, p4, r, g, b, a)
     DrawLine(p2.x, p2.y, p2.z + offset + side, p4.x, p4.y, p4.z + offset + side, 255, 255, 255, 255)    
 end
 
+Utils.TranslateVector = function(p, dir, dist)
+    local angle = math.rad(dir - 90)
+    local x = p.x + dist * math.cos(angle)
+    local y = p.y + dist * math.sin(angle)
+    return vector3(x, y, p.z)
+end
+
 Utils.RenderText = function(text, font, x, y, scale, r, g, b, a)
     if x == nil then  x = 0.5 end
     if y == nil then y = 0.5 end 
