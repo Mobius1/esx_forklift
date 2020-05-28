@@ -100,6 +100,8 @@ function SpawnPallet()
 
         ESX.Game.SpawnObject(prop, Pickup.Pos, function(pallet)
             SetEntityHeading(pallet, Pickup.Heading)
+            SetEntityAsMissionEntity(pallet, true, true)
+            PlaceObjectOnGroundProperly(pallet)
 
             Player.Pallet.Ready = false
 
@@ -175,6 +177,7 @@ end
 function DrawDropOffPoint(prop)
     ESX.Game.SpawnObject(prop, Player.Drop.Pos, function(pallet)
         SetEntityHeading(pallet, Player.Drop.Heading)
+        SetEntityAsMissionEntity(pallet, true, true)
         PlaceObjectOnGroundProperly(pallet)
     
         Wait(250)
@@ -818,7 +821,9 @@ function Populate()
 
         local ped = CreatePed('PED_TYPE_CIVMALE', 0x867639D1, v.x, v.y, v.z, v.h, false, false)
         TaskStartScenarioInPlace(ped, v.anim, 0, true)
-        SetPedComponentVariation(Player.Ped, 0, 5, 0, 2)
+        -- SetPedComponentVariation(Player.Ped, 0, 5, 0, 2)
+
+        SetEntityAsMissionEntity(ped, true, true)
 
         v.Ped = ped
     end
@@ -831,6 +836,7 @@ function Populate()
         end            
         local radio = CreateObject(model, Config.Population.Radio.x, Config.Population.Radio.y, Config.Population.Radio.z, true, false, false)
         SetEntityHeading(radio, Config.Population.Radio.h)
+        SetEntityAsMissionEntity(radio, true, true)
         PlaceObjectOnGroundProperly(radio)
         LinkStaticEmitterToEntity("SE_Script_Placed_Prop_Emitter_Boombox", radio)
         SetEmitterRadioStation("SE_Script_Placed_Prop_Emitter_Boombox", GetRadioStationName(1))
