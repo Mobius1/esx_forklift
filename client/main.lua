@@ -17,12 +17,6 @@ Hint.Display = false
 Hint.Zone = false
 Hint.Message = false
 
-Message = {}
-Message.Type = nil
-Message.Display = false
-Message.Ready = true
-Message.Title = nil
-Message.Message = nil
 
 PROPS = {}
 
@@ -68,7 +62,15 @@ function InitFLTJob()
             Player.Ped = PlayerPedId()
             Player.Pos = GetEntityCoords(Player.Ped)
             Player.OnDuty = false
-            Player.Authorized = true            
+            Player.Authorized = true           
+            
+            Message = {}
+            Message.Type = nil
+            Message.Display = false
+            Message.Ready = true
+            Message.Title = nil
+            Message.Message = nil            
+
             Ready = true
             Stop = false
         
@@ -159,7 +161,7 @@ function AddFLTBlip()
     if Player.FLT.Blip then
         RemoveBlip(Player.FLT.Blip)
     end    
-    Player.FLT.Blip = AddBlipForEntity(Player.FLT.vehicle)
+    Player.FLT.Blip = AddBlipForEntity(Player.FLT.Entity)
 
     SetBlipSprite(Player.FLT.Blip, 225)
     SetBlipAsShortRange(Player.FLT.Blip, true)
@@ -238,9 +240,19 @@ function DeliverPallet()
     -- Show Delivery Message
     DisplayMessage('delivered')
 
+    local ped = false
+    if Player.Drop.Ped then
+        ped = Player.Drop.Ped
+    end
+
     RemovePallet()
 
     Citizen.SetTimeout(6000, function()
+
+        if ped then
+            DeleteEntity(ped)
+        end
+
         -- Spawn Next Pallet
         SpawnPallet()   
     end) 
@@ -425,6 +437,7 @@ function StartInteractionThread()
                         end
                         Player.FLT.Active = true
 
+                        -- Start work when player enters FLT
                         if not Player.Working then
                             StartWork()
                         end
@@ -767,19 +780,7 @@ function StopJob()
             SetEntityCoords(Player.Ped, Config.Zones.Locker.Pos.x, Config.Zones.Locker.Pos.y, Config.Zones.Locker.Pos.z, 1, 0, 0, 1)
         end        
 
-        -- Remove peds
-        for k, v in pairs(Config.Population.Peds) do
-            if v.Ped then
-                DeleteEntity(v.Ped)
-            end
-        end
-
-        -- Remove radio
-        if Config.Population.Radio.Entity then
-            DeleteObject(Config.Population.Radio.Entity)
-        end
-
-        Config.Population.Populated = false
+        Depopulate()
         
         if Config.Debug then
             -- SetEntityCoords(Player.Ped, Config.Zones.Locker.Pos.x, Config.Zones.Locker.Pos.y, Config.Zones.Locker.Pos.z, 1, 0, 0, 1)
@@ -791,8 +792,19 @@ function StopJob()
             end
         end 
         
+        local objs = ESX.Game.GetObjects()
+
+        for k, v in pairs(objs) do
+            for _,n in ipairs(Config.Props) do
+                if GetEntityModel(v) == GetHashKey(n) then
+                    ESX.Game.DeleteObject(v)
+                end
+            end
+        end
 
         Ready = false
+
+        -- Set this to true to break out of thread loops
         Stop = true
     end 
 end
@@ -828,6 +840,22 @@ function Populate()
     end)  
     
     Config.Population.Populated = true
+end
+
+function Depopulate()
+    -- Remove peds
+    for k, v in pairs(Config.Population.Peds) do
+        if v.Ped then
+            DeleteEntity(v.Ped)
+        end
+    end
+
+    -- Remove radio
+    if Config.Population.Radio.Entity then
+        DeleteObject(Config.Population.Radio.Entity)
+    end
+
+    Config.Population.Populated = false
 end
 
 -- Citizen.CreateThread(function()
