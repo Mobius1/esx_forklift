@@ -83,3 +83,84 @@ Utils.RenderText = function(text, font, x, y, scale, r, g, b, a)
     AddTextComponentString(text)
     DrawText(x,y)
 end
+
+Utils.RenderDebugText = function(x, y, text, scale)
+    SetTextFont(4)
+    SetTextProportional(7)
+    SetTextScale(scale, scale)
+    SetTextColour(255, 255, 255, 255)
+    SetTextDropShadow(0, 0, 0, 0,255)
+    SetTextDropShadow()
+    SetTextEdge(4, 0, 0, 0, 255)
+    SetTextOutline()
+    SetTextEntry("STRING")
+    AddTextComponentString(text)
+    DrawText(x, y)
+end
+
+Utils.RenderDebugHud = function(Zones, Player, Distance)
+
+    local y = 0.40
+
+    local pickup = "false"
+    local pdist = 0.00
+
+    if Zones.Pickup.Active then
+        pickup = "true"
+
+        if Distance.Pickup then
+            pdist = math.floor(Distance.Pickup * 100) / 100
+        end        
+    end
+
+    local drop = "false"
+    local ddist = 0.00
+
+    if Zones.Drop.Active then
+        drop = "true"
+
+        if Distance.Drop then
+            ddist = math.floor(Distance.Drop * 100) / 100
+        end           
+    end 
+    
+    local pickedup = "false"
+
+    if Zones.Drop.PickedUp then
+        pickedup = "true"
+    end
+
+    local lifted = "false"
+    local health = 'N/A'
+
+    if Player.Pallet then
+        if Player.Pallet.Lifted then
+            lifted = "true"
+        end
+        
+        if Zones.Drop.Active then
+            health = Player.Pallet.Health / 10 .. "%"
+        end
+    end    
+
+    Utils.RenderDebugText(0.05, y, 'Pickup Point', 0.35)
+    y = y + 0.02
+    Utils.RenderDebugText(0.05, y, 'Ready:                   ~g~' .. pickup, 0.35)
+    y = y + 0.02
+    Utils.RenderDebugText(0.05, y, 'Distance:               ~g~' .. pdist .. 'm', 0.35)     
+    y = y + 0.04
+    Utils.RenderDebugText(0.05, y, 'Delivery Point', 0.35)
+    y = y + 0.02
+    Utils.RenderDebugText(0.05, y, 'Ready:                   ~g~' .. drop, 0.35)
+    y = y + 0.02
+    Utils.RenderDebugText(0.05, y, 'Distance:               ~g~' .. ddist .. 'm', 0.35)    
+    y = y + 0.04
+    Utils.RenderDebugText(0.05, y, 'Pallet', 0.35)
+    y = y + 0.02
+    Utils.RenderDebugText(0.05, y, 'Lifted:                    ~g~' .. lifted, 0.35)      
+    y = y + 0.02
+    Utils.RenderDebugText(0.05, y, 'Picked Up:             ~g~' .. pickedup, 0.35)    
+    y = y + 0.02
+    Utils.RenderDebugText(0.05, y, 'Health:                   ~g~' .. health, 0.35)         
+    y = y + 0.02
+end

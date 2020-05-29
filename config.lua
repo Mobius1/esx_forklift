@@ -7,7 +7,7 @@ Config.Debug = false
 Config.DrawDistance = 50
 Config.Pay = 25
 Config.Vehicle = 'forklift'
-
+Config.DamageLimit = 20.00
 
 Config.Props = {
     'prop_boxpile_06a',
