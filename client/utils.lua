@@ -7,7 +7,11 @@ Utils.DrawBlip = function(Type, ID, Text)
         RemoveBlip(Zone.Blip)
     end
 
-    Zone.Blip = AddBlipForCoord(Zone.Pos.x, Zone.Pos.y, Zone.Pos.z)
+    if Type == 'Pickup' then
+        Zone.Blip = AddBlipForEntity(Zone.Entity)
+    else
+        Zone.Blip = AddBlipForCoord(Zone.Pos.x, Zone.Pos.y, Zone.Pos.z)
+    end
 
     SetBlipSprite(Zone.Blip, ID)
     SetBlipAsShortRange(Zone.Blip, true)

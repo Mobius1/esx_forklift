@@ -17,6 +17,7 @@ Hint.Display = false
 Hint.Zone = false
 Hint.Message = false
 
+Zones = Config.Zones
 
 PROPS = {}
 
@@ -86,6 +87,7 @@ function StartWork()
     Player.Working = true
 
     RemovePallet()
+    Wait(1000)
     SpawnPallet()
 end
 
@@ -96,11 +98,14 @@ function SpawnPallet()
 
         local Points = GetSpawnPoints()
 
-        local Pickup = Points[1]
+        Zones.Pickup.Active = true
+        Zones.Pickup.Pos = Points[1].Pos
+        Zones.Pickup.Heading = Points[1].Heading
+
         local prop = Config.Props[ math.random( #Config.Props ) ]
 
-        ESX.Game.SpawnObject(prop, Pickup.Pos, function(pallet)
-            SetEntityHeading(pallet, Pickup.Heading)
+        ESX.Game.SpawnObject(prop, Zones.Pickup.Pos, function(pallet)
+            SetEntityHeading(pallet, Zones.Pickup.Heading)
             SetEntityAsMissionEntity(pallet, true, true)
             PlaceObjectOnGroundProperly(pallet)
 
@@ -109,13 +114,15 @@ function SpawnPallet()
             Wait(1000)
 
             Player.Pallet.Entity = pallet
-            Player.Pallet.InitCoords = GetEntityCoords(pallet)
+            Zones.Pickup.Entity = pallet
 
-            Player.Drop = Points[2]
+            Zones.Drop.Active = true
+            Zones.Drop.Pos = Points[2].Pos
+            Zones.Drop.Heading = Points[2].Heading
+
+            Utils.DrawBlip("Pickup", 1, "Pallet Collection Point")
 
             DrawDropOffPoint(prop)
-
-            AddPalletBlip(Player.Pallet)
 
             DisplayMessage('pickup')
 
@@ -129,10 +136,20 @@ function RemovePallet()
         ESX.Game.DeleteObject(Player.Pallet.Entity)
 
         RemoveBlip(Player.Pallet.Blip)
-        RemoveBlip(Player.Drop.Blip)
+        RemoveBlip(Zones.Drop.Blip)
 
         Player.Pallet = false
-        Player.Drop = nil
+
+        Zones.Drop.Active = false
+        Zones.Drop.Pos = nil
+        Zones.Drop.Heading = nil
+
+        Zones.Pickup.Active = false
+        Zones.Pickup.Pos = nil
+        Zones.Pickup.Heading = nil     
+        
+        Zones.Drop.PickedUp = false
+
         Player.AtPallet = false
     end
 end
@@ -172,30 +189,30 @@ function AddFLTBlip()
 end
 
 function DrawDropOffPoint(prop)
-    ESX.Game.SpawnObject(prop, Player.Drop.Pos, function(pallet)
-        SetEntityHeading(pallet, Player.Drop.Heading)
+    ESX.Game.SpawnObject(prop, Zones.Drop.Pos, function(pallet)
+        SetEntityHeading(pallet, Zones.Drop.Heading)
         SetEntityAsMissionEntity(pallet, true, true)
         PlaceObjectOnGroundProperly(pallet)
     
         Wait(250)
     
-        Player.Drop.Bounds = Utils.GetEntityBounds(pallet)
+        Zones.Drop.Bounds = Utils.GetEntityBounds(pallet)
 
         Wait(250)
 
         ESX.Game.DeleteObject(pallet)
 
-        local pedPos = Utils.TranslateVector(Player.Drop.Pos, Player.Drop.Heading - 90, 2.2)
+        local pedPos = Utils.TranslateVector(Zones.Drop.Pos, Zones.Drop.Heading - 90, 2.2)
 
         RequestModel( 0x867639D1 )
         while ( not HasModelLoaded( 0x867639D1 ) ) do
             Wait( 1 )
         end
     
-        local ped = CreatePed('PED_TYPE_CIVMALE', 0x867639D1, pedPos.x, pedPos.y, pedPos.z, Player.Drop.Heading, false, false)
+        local ped = CreatePed('PED_TYPE_CIVMALE', 0x867639D1, pedPos.x, pedPos.y, pedPos.z, Zones.Drop.Heading, false, false)
         TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_CLIPBOARD', 0, true)      
         
-        Player.Drop.Ped = ped
+        Zones.Drop.Ped = ped
     end)
 end
 
@@ -241,8 +258,8 @@ function DeliverPallet()
     DisplayMessage('delivered')
 
     local ped = false
-    if Player.Drop.Ped then
-        ped = Player.Drop.Ped
+    if Zones.Drop.Ped then
+        ped = Zones.Drop.Ped
     end
 
     RemovePallet()
@@ -296,11 +313,11 @@ function StoreFLT(force)
 end
 
 function ValidDrop()
-    if not Player.Drop.PickedUp then
+    if not Zones.Drop.PickedUp then
         return false
     end
     local offset = 1.0
-    local angle = math.abs(Player.Drop.Heading - Player.Pallet.Heading)
+    local angle = math.abs(Zones.Drop.Heading - Player.Pallet.Heading)
 
     local correctAngle = false
     if angle < offset or angle - 180 < offset then
@@ -324,6 +341,16 @@ function UpdateBlips()
 
     -- Locker Room blip
     Utils.DrawBlip("Locker", 366, _U('locker_room'))
+
+    if Zones.Pickup.Active then
+        Utils.DrawBlip("Pickup", 1, "Pallet Pickup Point")
+    end   
+    
+    if Zones.Drop.Active then
+        if Zones.Drop.PickedUp then
+            Utils.DrawBlip("Drop", 1, "Pallet Dropoff Point")
+        end
+    end     
 
     if Player.OnDuty then
         if Player.FLT then
@@ -366,14 +393,14 @@ function InitThreads()
     StartNotificationThread()
     
     if Config.Debug then
-        StartDebugThread()
+        -- StartDebugThread()
     end
 end
 
 Distance = {}
 
 function GetDistances()
-    for Name, Zone in pairs(Config.Zones) do
+    for Name, Zone in pairs(Zones) do
         if Zone.Pos ~= nil then
             Distance[Name] = #(Zone.Pos - Player.Pos)
         end
@@ -418,7 +445,7 @@ function StartPalletThread()
     Citizen.CreateThread(function()
         while true do
             if Ready and Player.Authorized then
-                if Player.Working and Player.Drop ~= nil then
+                if Player.Working and Zones.Pickup.Active then
                     Player.Pallet.Heading = GetEntityHeading(Player.Pallet.Entity)
                     Player.Pallet.Lifted = IsEntityInAir(Player.Pallet.Entity)
                     Player.AtPallet = IsEntityAtEntity(Player.FLT.Entity, Player.Pallet.Entity, 3.0, 3.0, 3.0, 0, 1, 0)
@@ -442,7 +469,7 @@ function StartInteractionThread()
                         Player.FLT.Active = false
 
                         AddFLTBlip()
-                        RemoveBlip(Config.Zones.Return.Blip)
+                        RemoveBlip(Zones.Return.Blip)
                     else
                         if Player.FLT.Blip then
                             UpdateBlips()
@@ -504,26 +531,34 @@ function StartMarkerThread()
             if Ready and Player.Authorized then
                 if Distance.Locker <= Config.DrawDistance then
                     -- Locker Room Marker
-                    DrawMarker(Config.Zones.Locker.Type, Config.Zones.Locker.Pos, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Locker.Size.x, Config.Zones.Locker.Size.y, Config.Zones.Locker.Size.z, Config.Zones.Locker.Color.r, Config.Zones.Locker.Color.g, Config.Zones.Locker.Color.b, 100, false, true, 2, false, nil, nil, false)
+                    DrawMarker(Zones.Locker.Type, Zones.Locker.Pos, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Zones.Locker.Size.x, Zones.Locker.Size.y, Zones.Locker.Size.z, Zones.Locker.Color.r, Zones.Locker.Color.g, Zones.Locker.Color.b, 100, false, true, 2, false, nil, nil, false)
                 end
 
                 if Player.OnDuty then
-                    if not Player.FLT and Distance.Garage <= Config.DrawDistance then
-                        -- FLT Garage Marker
-                        DrawMarker(Config.Zones.Garage.Type, Config.Zones.Garage.Pos, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Garage.Size.x, Config.Zones.Garage.Size.y, Config.Zones.Garage.Size.z, Config.Zones.Garage.Color.r, Config.Zones.Garage.Color.g, Config.Zones.Garage.Color.b, 100, false, true, 2, false, nil, nil, false)
+                    if not Player.FLT then
+                        if Distance.Garage <= Config.DrawDistance then
+                            -- FLT Garage Marker
+                            DrawMarker(Zones.Garage.Type, Zones.Garage.Pos, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Zones.Garage.Size.x, Zones.Garage.Size.y, Zones.Garage.Size.z, Zones.Garage.Color.r, Zones.Garage.Color.g, Zones.Garage.Color.b, 100, false, true, 2, false, nil, nil, false)
+                        end
                     else
-                        if Player.FLT.Active and Distance.Return <= Config.DrawDistance then
-                            -- FLT Return Marker
-                            DrawMarker(Config.Zones.Return.Type, Config.Zones.Return.Pos, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Return.Size.x, Config.Zones.Return.Size.y, Config.Zones.Return.Size.z, Config.Zones.Return.Color.r, Config.Zones.Return.Color.g, Config.Zones.Return.Color.b, 100, false, true, 2, false, nil, nil, false)
+                        if Player.FLT.Active then
+                            if Distance.Return <= Config.DrawDistance then
+                                -- FLT Return Marker
+                                DrawMarker(Zones.Return.Type, Zones.Return.Pos, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Zones.Return.Size.x, Zones.Return.Size.y, Zones.Return.Size.z, Zones.Return.Color.r, Zones.Return.Color.g, Zones.Return.Color.b, 100, false, true, 2, false, nil, nil, false)
+                            end
                         end
                     end
 
-                    if Player.Drop ~= nil and Player.Drop.PickedUp and Distance.Drop <= Config.DrawDistance then
-                        -- Delivery Point Ghost
-                        Utils.DrawBox(Player.Drop.Bounds[1], Player.Drop.Bounds[2], Player.Drop.Bounds[4], Player.Drop.Bounds[3], 238, 238, 0, 100)
+                    if Zones.Drop.Active then
+                        if Zones.Drop.PickedUp then
+                            if Distance.Drop <= Config.DrawDistance then
+                                -- Delivery Point Ghost
+                                Utils.DrawBox(Zones.Drop.Bounds[1], Zones.Drop.Bounds[2], Zones.Drop.Bounds[4], Zones.Drop.Bounds[3], 238, 238, 0, 100)
 
-                        -- Delivery Point Marker
-                        DrawMarker(0, vector3(Player.Drop.Pos.x, Player.Drop.Pos.y, Player.Drop.Pos.z + 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Return.Size.x, Config.Zones.Return.Size.y, Config.Zones.Return.Size.z, Config.Zones.Return.Color.r, Config.Zones.Return.Color.g, Config.Zones.Return.Color.b, 100, true, true, 2, false, nil, nil, false)
+                                -- Delivery Point Marker
+                                DrawMarker(0, vector3(Zones.Drop.Pos.x, Zones.Drop.Pos.y, Zones.Drop.Pos.z + 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Zones.Return.Size.x, Zones.Return.Size.y, Zones.Return.Size.z, Zones.Return.Color.r, Zones.Return.Color.g, Zones.Return.Color.b, 100, true, true, 2, false, nil, nil, false)
+                            end
+                        end
                     end
                 end
             end       
@@ -538,9 +573,9 @@ function StartDeliveryThread()
     Citizen.CreateThread(function()
         while true do
             if Ready and Player.Authorized then
-                if Player.Working and Player.Drop ~= nil then
+                if Player.Working and Zones.Drop.Active then
                     local pcoords = GetEntityCoords(Player.Pallet.Entity) 
-                    local pdist = #(Player.Drop.Pos - pcoords) 
+                    local pdist = #(Zones.Drop.Pos - pcoords) 
                     
                     if not Player.Pallet.Ready then
                         if pdist < 50 then
@@ -558,7 +593,9 @@ function StartDeliveryThread()
                         end   
                     else
                         if not Player.AtPallet then
-                            DrawMarker(0, vector3(pcoords.x, pcoords.y, pcoords.z + 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Config.Zones.Return.Size.x, Config.Zones.Return.Size.y, Config.Zones.Return.Size.z, Config.Zones.Return.Color.r, Config.Zones.Return.Color.g, Config.Zones.Return.Color.b, 100, true, true, 2, false, nil, nil, false)
+                            if Distance.Pickup < Config.DrawDistance then
+                                DrawMarker(0, vector3(pcoords.x, pcoords.y, pcoords.z + 3.0), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Zones.Return.Size.x, Zones.Return.Size.y, Zones.Return.Size.z, Zones.Return.Color.r, Zones.Return.Color.g, Zones.Return.Color.b, 100, true, true, 2, false, nil, nil, false)
+                            end
                         end                
                     end 
                 end                
@@ -579,31 +616,29 @@ function StartZoneThread()
                 Hint.Display = false
                 Hint.Message = false                
 
-                if Distance.Locker <= Config.DrawDistance then
-                    if Distance.Locker <= Config.Zones.Locker.Size.x then
-                        Hint.Zone = 'Locker'
-                        Hint.Display = true
-                        Hint.Message = _U('change_clothes')
-                    end
+                if Distance.Locker <= Zones.Locker.Size.x then
+                    Hint.Zone = 'Locker'
+                    Hint.Display = true
+                    Hint.Message = _U('change_clothes')
                 end
 
                 if Player.OnDuty then
-                    if Distance.Garage <= Config.Zones.Garage.Size.x and not Player.FLT then
+                    if Distance.Garage <= Zones.Garage.Size.x and not Player.FLT then
                         Hint.Zone = 'Garage'
                         Hint.Display = true
                         Hint.Message = _U('enter_flt')
                     end
                         
-                    if Distance.Return <= Config.Zones.Garage.Size.x and Player.FLT and Player.FLT.Active then
+                    if Distance.Return <= Zones.Garage.Size.x and Player.FLT and Player.FLT.Active then
                         Hint.Zone = 'Return'
                         Hint.Display = true
                         Hint.Message = _U('return_flt')
                     end  
                         
-                    if Player.Working and Player.Drop ~= nil then
-                        if Player.Pallet.Lifted and not Player.Drop.PickedUp then
-                            Player.Drop.PickedUp = true
-                            AddPalletBlip(Player.Drop)
+                    if Player.Working and Zones.Drop.Active then
+                        if Player.Pallet.Lifted and not Zones.Drop.PickedUp then
+                            Zones.Drop.PickedUp = true
+                            Utils.DrawBlip("Drop", 1, "Pallet Delivery Point")
                             
                             DisplayMessage('dropoff')
                         end
@@ -623,7 +658,7 @@ function StartZoneThread()
                 end            
             end
             if Stop then return end
-            Citizen.Wait(0)
+            Citizen.Wait(1)
         end
     end)
 end
@@ -713,6 +748,17 @@ function Reset(force)
     Player.Pallet = false
     Player.InRange = false
     Player.Delivered = 0
+
+    Zones.Drop.Active = false
+    Zones.Pickup.Active = false
+
+    Zones.Drop.Pos = nil
+    Zones.Pickup.Pos = nil
+
+    Zones.Drop.Heading = nil
+    Zones.Pickup.Heading = nil  
+    
+    Zones.Drop.PickedUp = false
     
     Hint.Display = false
     Hint.Zone = false
