@@ -37,7 +37,7 @@ To use a custom vehicle just open `config.lua` and edit `Config.Vehicle` and ent
     Config.Vehicle = 'spawn_code_here'
 ```
 
-I recommend [DIBZER's Forklift](https://forum.cfx.re/t/dibzers-hvy-forklift-non-els-add-on/848865) for this job. Make sure you give him some love!
+I recommend [DIBZER's Forklift](https://www.gta5-mods.com/vehicles/dibzer-s-forklift-non-els-add-on-fivem) for this job. Make sure you give him some love!
 
 ## Development Options
 Setting `Config.Debug` to `true` renders blips to show the location of all points and renders some debug text to the screen to help with development. The package is written to allow it to be restarted properly with `restart esx_forklift` in the console.
