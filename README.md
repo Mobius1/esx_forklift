@@ -1,16 +1,59 @@
 # esx_forklift
-Forklift job for FiveM.
+Forklift job for FiveM
 
-### Currently under development so probably won't work on your server.
+## Features
+* Pickup and deliver pallets
+* Earnings per-pallet delivered
+* Fines for damaged goods
+* Add your own pickup / delivery points
 
 ## Requirements
+
 * [es_extended](https://github.com/ESX-Org/es_extended)
+
+## Download & Installation
+
+* Download and extract the package: https://github.com/Mobius1/esx_forklift/archive/master.zip
+* Rename the `esx_forklift-master` directory to `esx_forklift`
+* Drop the `esx_forklift` directory into the `[esx]` directory on your server
+* Import `esx_forklift.sql` into to your database
+* Add `start esx_forklift` in your `server.cfg`
+* Edit `config.lua` to your liking
+* Start your server and rejoice!
+
+## Adding Collection / Delivery Points
+* Open `config.lua` and add your custom points to `Config.Drops`
+```lua
+Config.Drops = 
+    { Pos = vector3(-366.03740, -2784.58300, 5.00000), Heading = 90.00 }, 
+    ...
+}
+```
+
+## Using Custom Vehicles
+To use a custom vehicle just open `config.lua` and edit `Config.Vehicle` and enter the spawn code:
+
+```lua
+    Config.Vehicle = 'spawn_code_here'
+```
+
+I recommend [DIBZER's Forklift](https://forum.cfx.re/t/dibzers-hvy-forklift-non-els-add-on/848865) for this job. Make sure you give him some love!
+
+## Development Options
+Setting `Config.Debug` to `true` renders blips to show the location of all points and renders some debug text to the screen to help with development. The package is written to allow it to be restarted properly with `restart esx_forklift` in the console.
+
+## Videos
+
+* Coming soon...
+
+## Contributing
+Pull requests welcome.
 
 ## Legal
 
 ### License
 
-esx_forklift - Forklift job for FiveM.
+esx_forklift - Forklift job for FiveM
 
 Copyright (C) 2020 Karl Saunders
 
