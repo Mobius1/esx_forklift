@@ -1,6 +1,26 @@
 Utils = {}
 
-Utils.DrawBlip = function(Type, ID, Text)
+Utils.AddBlip = function(Obj, ID, Text, Coords)
+    if Obj.Blip then
+        RemoveBlip(Obj.Blip)
+    end
+
+    if Coords ~= nil then
+        Obj.Blip = AddBlipForCoord(Obj.Pos.x, Obj.Pos.y, Obj.Pos.z)
+    else
+        Obj.Blip = AddBlipForEntity(Obj.Entity)
+    end
+
+    SetBlipSprite(Obj.Blip, ID)
+    SetBlipAsShortRange(Obj.Blip, true)
+    SetBlipColour(Obj.Blip, 5)
+    SetBlipScale(Obj.Blip, 1.0)
+    BeginTextCommandSetBlipName("STRING")
+    AddTextComponentString(Text)
+    EndTextCommandSetBlipName(Obj.Blip)  
+end
+
+Utils.DrawZoneBlip = function(Type, ID, Text)
     local Zone = Config.Zones[Type]
 
     if Zone.Blip then
@@ -21,6 +41,7 @@ Utils.DrawBlip = function(Type, ID, Text)
     AddTextComponentString(Text)
     EndTextCommandSetBlipName(Zone.Blip)  
 end
+
 
 -- Get the bounding box of an entity
 Utils.GetEntityBounds = function(entity)

@@ -45,7 +45,6 @@ end)
 
 RegisterNetEvent('esx:setJob')
 AddEventHandler('esx:setJob', function(job)
-    print(job.name)
     if job.name == 'flt' then
         Player.Data = ESX.GetPlayerData()
         Player.Data.job = job
@@ -75,9 +74,9 @@ function InitFLTJob()
             Ready = true
             Stop = false
         
+            GetDistances()
             InitThreads()
             UpdateBlips()
-            GetDistances()
         end
     end)    
 end
@@ -89,26 +88,35 @@ function StopFLTJob()
         RemoveBlips()        
 
         if Config.Debug then
-            SetEntityCoords(Player.Ped, Config.Zones.Locker.Pos.x, Config.Zones.Locker.Pos.y, Config.Zones.Locker.Pos.z, 1, 0, 0, 1)
+            -- SetEntityCoords(Player.Ped, Config.Zones.Locker.Pos.x, Config.Zones.Locker.Pos.y, Config.Zones.Locker.Pos.z, 1, 0, 0, 1)
         end        
 
         Depopulate()
         
         if Config.Debug then
             -- SetEntityCoords(Player.Ped, Config.Zones.Locker.Pos.x, Config.Zones.Locker.Pos.y, Config.Zones.Locker.Pos.z, 1, 0, 0, 1)
-            for k, Drop in pairs(Config.Points) do
-                if Drop.Entity then
-                    ESX.Game.DeleteObject(Drop.Entity)
-                    Drop.Entity = false
+            for i = 1, #Config.Points do
+                local Point = Config.Points[i]
+                if Point.Entity then
+                    ESX.Game.DeleteObject(Point.Entity)
+                    Point.Entity = false
+                end
+
+                if Point.Debug then
+                    if Point.Debug.Ped then
+                        DeleteEntity(Point.Debug.Ped)
+                    end
                 end
             end
         end 
         
         local objs = ESX.Game.GetObjects()
 
-        for k, v in pairs(objs) do
-            for _,n in ipairs(Config.Props) do
-                if GetEntityModel(v) == GetHashKey(n) then
+        for i = 1, #objs do
+            local v = objs[i]
+
+            for n = 1, #Config.Props do
+                if GetEntityModel(v) == GetHashKey(Config.Props[n]) then
                     ESX.Game.DeleteObject(v)
                 end
             end
@@ -128,40 +136,6 @@ function StartWork()
     RemovePallet()
     Wait(1000)
     SpawnPallet()
-end
-
-function AddPalletBlip(Obj)
-    local msg = ''
-    if Obj.Entity ~= nil then
-        msg = 'Pallet Pickup'
-        Obj.Blip = AddBlipForEntity(Obj.Entity)
-    else
-        msg = 'Pallet Dropoff'
-        Obj.Blip = AddBlipForCoord(Obj.Pos.x, Obj.Pos.y, Obj.Pos.z)
-    end
-
-    SetBlipSprite(Obj.Blip, 1)
-    SetBlipAsShortRange(Obj.Blip, true)
-    SetBlipColour(Obj.Blip, 5)
-    SetBlipScale(Obj.Blip, 1.0)
-    BeginTextCommandSetBlipName("STRING")
-    AddTextComponentString(msg)
-    EndTextCommandSetBlipName(Obj.Blip) 
-end
-
-function AddFLTBlip()
-    if Player.FLT.Blip then
-        RemoveBlip(Player.FLT.Blip)
-    end    
-    Player.FLT.Blip = AddBlipForEntity(Player.FLT.Entity)
-
-    SetBlipSprite(Player.FLT.Blip, 225)
-    SetBlipAsShortRange(Player.FLT.Blip, true)
-    SetBlipColour(Player.FLT.Blip, 5)
-    SetBlipScale(Player.FLT.Blip, 1.0)
-    BeginTextCommandSetBlipName("STRING")
-    AddTextComponentString(_U('flt'))
-    EndTextCommandSetBlipName(Player.FLT.Blip)  
 end
 
 function DrawDropOffPoint(prop)
@@ -197,9 +171,9 @@ function GetSpawnPoints()
     local shuffled = {}
     local points = {}
 
-    for i, v in ipairs(Config.Points) do
+    for i = 1, #Config.Points do
         local pos = math.random(1, #shuffled+1)
-        table.insert(shuffled, pos, v)
+        table.insert(shuffled, pos, Config.Points[i])
     end 
 
     for i = 1, 2 do
@@ -256,7 +230,7 @@ function SpawnPallet()
             Zones.Drop.Pos = Points[2].Pos
             Zones.Drop.Heading = Points[2].Heading
 
-            Utils.DrawBlip("Pickup", 1, "Pallet Collection Point")
+            Utils.DrawZoneBlip("Pickup", 1, "Pallet Collection Point")
 
             DrawDropOffPoint(prop)
 
@@ -301,7 +275,7 @@ function PickupPallet()
     Zones.Pickup.Pos = nil
     Zones.Pickup.Heading = nil
 
-    Utils.DrawBlip("Drop", 1, "Pallet Delivery Point")
+    Utils.DrawZoneBlip("Drop", 1, "Pallet Delivery Point")
                                 
     DisplayMessage('dropoff')    
 end
@@ -431,15 +405,15 @@ function UpdateBlips()
     RemoveBlips()
 
     -- Locker Room blip
-    Utils.DrawBlip("Locker", 366, _U('locker_room'))
+    Utils.DrawZoneBlip("Locker", 366, _U('locker_room'))
 
     if Zones.Pickup.Active then
-        Utils.DrawBlip("Pickup", 1, "Pallet Pickup Point")
+        Utils.DrawZoneBlip("Pickup", 1, "Pallet Pickup Point")
     end   
     
     if Zones.Drop.Active then
         if Zones.Drop.PickedUp then
-            Utils.DrawBlip("Drop", 1, "Pallet Dropoff Point")
+            Utils.DrawZoneBlip("Drop", 1, "Pallet Dropoff Point")
         end
     end     
 
@@ -447,20 +421,21 @@ function UpdateBlips()
         if Player.FLT then
             if Player.FLT.Active then
                 -- FLT return blip
-                Utils.DrawBlip("Return", 473, _U('warehouse_return'))
+                Utils.DrawZoneBlip("Return", 473, _U('warehouse_return'))
             end
 
             RemoveBlip(Config.Zones.Garage.Blip)
         else
             -- FLT garage blip
-            Utils.DrawBlip("Garage", 524, _U('warehouse_pickup'))
+            Utils.DrawZoneBlip("Garage", 524, _U('warehouse_pickup'))
         end 
     end
 end
 
 -- Remove all minimap blips
 function RemoveBlips()
-    for k, v in pairs(Config.Zones) do
+    for i = 1, #Zones do
+        local v = Zones[i]
         if v.Blip then
             RemoveBlip(v.Blip)
             v.Blip = nil
@@ -474,7 +449,8 @@ end
 -------------------------------
 
 function Populate()
-    for k, v in pairs(Config.Population.Peds) do
+    for i = 1, #Config.Population.Peds do
+        local v = Config.Population.Peds[i]
         RequestModel( 0x867639D1 )
         while ( not HasModelLoaded( 0x867639D1 ) ) do
             Citizen.Wait( 1 )
@@ -511,7 +487,8 @@ end
 
 function Depopulate()
     -- Remove peds
-    for k, v in pairs(Config.Population.Peds) do
+    for i = 1, #Config.Population.Peds do
+        local v = Config.Population.Peds[i]
         if v.Ped then
             DeleteEntity(v.Ped)
         end
@@ -616,7 +593,9 @@ function StartInteractionThread()
                     if not IsPedSittingInVehicle(Player.Ped, Player.FLT.Entity) then
                         Player.FLT.Active = false
 
-                        AddFLTBlip()
+                        -- FLT blip
+                        Utils.AddBlip(Player.FLT, 255, _U('flt'))
+
                         RemoveBlip(Zones.Return.Blip)
                     else
                         if Player.FLT.Blip then
@@ -838,6 +817,57 @@ function StartDebugThread()
         while true do
             if Ready and Player.Authorized then
                 Utils.RenderDebugHud(Zones, Player, Distance)
+
+                for i = 1, #Config.Points do
+                    local Point = Config.Points[i]
+                    if Point.Debug == nil then
+                        Point.Debug = {
+                            Spawned = false,
+                            Ped = false
+                        }
+                    end
+
+                    local dist = #(Point.Pos - Player.Pos)
+
+                    if not Point.Debug.Spawned then
+                        if dist < 50 then
+                            ESX.Game.SpawnObject('prop_boxpile_07d', Point.Pos, function(pallet)
+                                SetEntityHeading(pallet, Point.Heading)
+                                -- SetEntityAsMissionEntity(pallet, true, true)
+                                PlaceObjectOnGroundProperly(pallet)
+
+                                Point.Debug.Spawned = true
+                
+                                Wait(250)
+                
+                                Point.Debug.Bounds = Utils.GetEntityBounds(pallet)
+            
+                                Wait(250)
+            
+                                ESX.Game.DeleteObject(pallet)
+            
+                                local pedPos = Utils.TranslateVector(Point.Pos, Point.Heading - 90, 2.2)
+            
+                                RequestModel( 0x867639D1 )
+                                while ( not HasModelLoaded( 0x867639D1 ) ) do
+                                    Wait( 1 )
+                                end
+                
+                                local ped = CreatePed('PED_TYPE_CIVMALE', 0x867639D1, pedPos.x, pedPos.y, pedPos.z, Point.Heading, false, false)
+                                TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_CLIPBOARD', 0, true)      
+                    
+                                Point.Debug.Ped = ped
+                            end)
+                        end
+                    else
+                        if Point.Debug.Bounds ~= nil then
+                            if dist < 50 then
+                                Utils.DrawBox(Point.Debug.Bounds[1], Point.Debug.Bounds[2], Point.Debug.Bounds[4], Point.Debug.Bounds[3], 238, 238, 0, 100)
+                                ESX.Game.Utils.DrawText3D(Point.Pos, Point.Pos.x .. ', ' ..  Point.Pos.y .. ', ' .. Point.Pos.z .. ', ' .. Point.Heading, 2.0)
+                            end
+                        end
+                    end
+                end
             end
             Citizen.Wait(0)
         end
