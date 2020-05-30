@@ -96,7 +96,7 @@ function StopFLTJob()
         
         if Config.Debug then
             -- SetEntityCoords(Player.Ped, Config.Zones.Locker.Pos.x, Config.Zones.Locker.Pos.y, Config.Zones.Locker.Pos.z, 1, 0, 0, 1)
-            for k, Drop in pairs(Config.Drops) do
+            for k, Drop in pairs(Config.Points) do
                 if Drop.Entity then
                     ESX.Game.DeleteObject(Drop.Entity)
                     Drop.Entity = false
@@ -197,7 +197,7 @@ function GetSpawnPoints()
     local shuffled = {}
     local points = {}
 
-    for i, v in ipairs(Config.Drops) do
+    for i, v in ipairs(Config.Points) do
         local pos = math.random(1, #shuffled+1)
         table.insert(shuffled, pos, v)
     end 

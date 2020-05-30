@@ -22,9 +22,9 @@ Forklift job for FiveM
 * Start your server and rejoice!
 
 ## Adding Collection / Delivery Points
-* Open `config.lua` and add your custom points to `Config.Drops`
+* Open `config.lua` and add your custom points to `Config.Points`
 ```lua
-Config.Drops = 
+Config.Points = 
     { Pos = vector3(-366.03740, -2784.58300, 5.00000), Heading = 90.00 }, 
     ...
 }

@@ -16,7 +16,6 @@ Config.Props = {
 }
 
 Config.Zones = {
-
     Locker = {
         Pos     = vector3(9.62, -2658.71, 5.00),
         Color   = {r = 238, g = 238, b = 0},
@@ -58,7 +57,7 @@ Config.Zones = {
     },    
 }
 
-Config.Drops = {
+Config.Points = {
     { Pos = vector3(-28.47571, -2665.28300, 5.00000), Heading = 270.00 },
     { Pos = vector3(-28.69450, -2679.03400, 5.00000), Heading = 270.00 },
     { Pos = vector3(51.79316, -2719.11300, 5.00000), Heading = 270.00 },
