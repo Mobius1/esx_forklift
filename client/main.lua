@@ -88,7 +88,7 @@ function StopFLTJob()
         RemoveBlips()        
 
         if Config.Debug then
-            -- SetEntityCoords(Player.Ped, Config.Zones.Locker.Pos.x, Config.Zones.Locker.Pos.y, Config.Zones.Locker.Pos.z, 1, 0, 0, 1)
+            SetEntityCoords(Player.Ped, Config.Zones.Locker.Pos.x, Config.Zones.Locker.Pos.y, Config.Zones.Locker.Pos.z, 1, 0, 0, 1)
         end        
 
         Depopulate()
@@ -101,12 +101,6 @@ function StopFLTJob()
                     ESX.Game.DeleteObject(Point.Entity)
                     Point.Entity = false
                 end
-
-                if Point.Debug then
-                    if Point.Debug.Ped then
-                        DeleteEntity(Point.Debug.Ped)
-                    end
-                end
             end
         end 
         
@@ -115,10 +109,8 @@ function StopFLTJob()
         for i = 1, #objs do
             local v = objs[i]
 
-            for n = 1, #Config.Props do
-                if GetEntityModel(v) == GetHashKey(Config.Props[n]) then
-                    ESX.Game.DeleteObject(v)
-                end
+            if GetEntityModel(v) == GetHashKey(Config.Pallet) then
+                ESX.Game.DeleteObject(v)
             end
         end
 
@@ -138,8 +130,8 @@ function StartWork()
     SpawnPallet()
 end
 
-function DrawDropOffPoint(prop)
-    ESX.Game.SpawnObject(prop, Zones.Drop.Pos, function(pallet)
+function DrawDropOffPoint()
+    ESX.Game.SpawnObject(Config.Pallet, Zones.Drop.Pos, function(pallet)
         SetEntityHeading(pallet, Zones.Drop.Heading)
         SetEntityAsMissionEntity(pallet, true, true)
         PlaceObjectOnGroundProperly(pallet)
@@ -159,8 +151,18 @@ function DrawDropOffPoint(prop)
             Wait( 1 )
         end
     
-        local ped = CreatePed('PED_TYPE_CIVMALE', 0x867639D1, pedPos.x, pedPos.y, pedPos.z, Zones.Drop.Heading, false, false)
-        TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_CLIPBOARD', 0, true)      
+        -- Position you want ped to face
+        local positionToFace = Utils.GetCentreOfVectors(Zones.Drop.Bounds[4], Zones.Drop.Bounds[3])
+
+        -- Position diff
+        local x = positionToFace.x - pedPos.x
+        local y = positionToFace.y - pedPos.y
+
+        -- Calculate heading
+        local heading = GetHeadingFromVector_2d(x, y)
+
+        local ped = CreatePed('PED_TYPE_CIVMALE', 0x867639D1, pedPos.x, pedPos.y, pedPos.z, heading, false, false)
+        TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_CLIPBOARD', 0, true)       
         
         Zones.Drop.Ped = ped
     end)
@@ -176,9 +178,8 @@ function GetSpawnPoints()
         table.insert(shuffled, pos, Config.Points[i])
     end 
 
-    for i = 1, 2 do
-        table.insert(points, shuffled[i])
-    end
+    table.insert(points, shuffled[1])
+    table.insert(points, shuffled[2])
 
     return points
 end
@@ -212,9 +213,7 @@ function SpawnPallet()
         Zones.Pickup.Pos = Points[1].Pos
         Zones.Pickup.Heading = Points[1].Heading
 
-        local prop = Config.Props[ math.random( #Config.Props ) ]
-
-        ESX.Game.SpawnObject(prop, Zones.Pickup.Pos, function(pallet)
+        ESX.Game.SpawnObject(Config.Pallet, Zones.Pickup.Pos, function(pallet)
             SetEntityHeading(pallet, Zones.Pickup.Heading)
             SetEntityAsMissionEntity(pallet, true, true)
             PlaceObjectOnGroundProperly(pallet)
@@ -232,7 +231,7 @@ function SpawnPallet()
 
             Utils.DrawZoneBlip("Pickup", 1, "Pallet Collection Point")
 
-            DrawDropOffPoint(prop)
+            DrawDropOffPoint()
 
             DisplayMessage('pickup')
 
@@ -830,7 +829,7 @@ function StartDebugThread()
                     local dist = #(Point.Pos - Player.Pos)
 
                     if not Point.Debug.Spawned then
-                        if dist < 50 then
+                        if dist < Config.DrawDistance then
                             ESX.Game.SpawnObject('prop_boxpile_07d', Point.Pos, function(pallet)
                                 SetEntityHeading(pallet, Point.Heading)
                                 -- SetEntityAsMissionEntity(pallet, true, true)
@@ -845,25 +844,12 @@ function StartDebugThread()
                                 Wait(250)
             
                                 ESX.Game.DeleteObject(pallet)
-            
-                                local pedPos = Utils.TranslateVector(Point.Pos, Point.Heading - 90, 2.2)
-            
-                                RequestModel( 0x867639D1 )
-                                while ( not HasModelLoaded( 0x867639D1 ) ) do
-                                    Wait( 1 )
-                                end
-                
-                                local ped = CreatePed('PED_TYPE_CIVMALE', 0x867639D1, pedPos.x, pedPos.y, pedPos.z, Point.Heading, false, false)
-                                TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_CLIPBOARD', 0, true)      
-                    
-                                Point.Debug.Ped = ped
                             end)
                         end
                     else
                         if Point.Debug.Bounds ~= nil then
-                            if dist < 50 then
+                            if dist < Config.DrawDistance then
                                 Utils.DrawBox(Point.Debug.Bounds[1], Point.Debug.Bounds[2], Point.Debug.Bounds[4], Point.Debug.Bounds[3], 238, 238, 0, 100)
-                                ESX.Game.Utils.DrawText3D(Point.Pos, Point.Pos.x .. ', ' ..  Point.Pos.y .. ', ' .. Point.Pos.z .. ', ' .. Point.Heading, 2.0)
                             end
                         end
                     end

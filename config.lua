@@ -9,11 +9,7 @@ Config.Pay = 25
 Config.Vehicle = 'forklift'
 Config.DamageLimit = 20.00
 
-Config.Props = {
-    'prop_boxpile_06a',
-    'prop_boxpile_06b',
-    'prop_boxpile_07d'
-}
+Config.Pallet = 'prop_boxpile_07d'
 
 Config.Zones = {
     Locker = {
@@ -56,6 +52,13 @@ Config.Zones = {
         Type    = 0
     },    
 }
+
+function TranslateVector(p, dir, dist)
+    local angle = math.rad(dir - 90)
+    local x = p.x + dist * math.cos(angle)
+    local y = p.y + dist * math.sin(angle)
+    return vector3(x, y, p.z)
+end
 
 Config.Points = {
 
@@ -174,23 +177,22 @@ Config.Points = {
     { Pos = vector3(-229.54770, -2475.67100, 5.00000), Heading = 90.00 },
     { Pos = vector3(-224.49350, -2519.71700, 5.00000), Heading = 180.00 },
     
+    -- Trailers (DON'T CURRENTLY WORK DUE TO MAX HEIGHT OF FLT TINES)
+    -- { Pos = vector3(-466.08, -2765.11, 6.50), Heading = 317.00 }, 
+    -- { Pos = vector3(-468.85913, -2762.51855, 6.50), Heading = 317.00 }, 
+    -- { Pos = vector3(-471.63828, -2759.92700, 6.50), Heading = 317.00 }, 
 
-    -- Trailers
-    { Pos = vector3(-466.08, -2765.11, 6.50), Heading = 317.00 }, 
-    { Pos = vector3(-468.85913, -2762.51855, 6.50), Heading = 317.00 }, 
-    { Pos = vector3(-471.63828, -2759.92700, 6.50), Heading = 317.00 }, 
+    -- { Pos = vector3(-484.39163, -2784.74707, 6.50), Heading = 315.75 }, 
+    -- { Pos = vector3(-487.65082, -2781.57202, 6.50), Heading = 315.75 }, 
+    -- { Pos = vector3(-490.37274, -2778.92041, 6.50), Heading = 315.75 }, 
 
-    { Pos = vector3(-484.39163, -2784.74707, 6.50), Heading = 315.75 }, 
-    { Pos = vector3(-487.65082, -2781.57202, 6.50), Heading = 315.75 }, 
-    { Pos = vector3(-490.37274, -2778.92041, 6.50), Heading = 315.75 }, 
+    -- { Pos = vector3(-395.25, -2745.33, 6.50), Heading = 134.25 }, 
+    -- { Pos = vector3(-392.58655, -2748.04053, 6.50), Heading = 134.25 }, 
+    -- { Pos = vector3(-389.94677, -2750.77393, 6.50), Heading = 134.25 }, 
 
-    { Pos = vector3(-395.25, -2745.33, 6.50), Heading = 134.25 }, 
-    { Pos = vector3(-392.58655, -2748.04053, 6.50), Heading = 134.25 }, 
-    { Pos = vector3(-389.94677, -2750.77393, 6.50), Heading = 134.25 }, 
-
-    { Pos = vector3(-389.87775, -2740.09668, 6.50), Heading = 139.25 }, 
-    { Pos = vector3(-386.899899, -2742.57715, 6.50), Heading = 139.25 }, 
-    { Pos = vector3(-384.12024, -2745.05761, 6.50), Heading = 139.25 }, 
+    -- { Pos = vector3(-389.87775, -2740.09668, 6.50), Heading = 139.25 }, 
+    -- { Pos = vector3(-386.899899, -2742.57715, 6.50), Heading = 139.25 }, 
+    -- { Pos = vector3(-384.12024, -2745.05761, 6.50), Heading = 139.25 }, 
 }
 
 

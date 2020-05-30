@@ -185,3 +185,7 @@ Utils.RenderDebugHud = function(Zones, Player, Distance)
     Utils.RenderDebugText(0.05, y, 'Health:                   ~g~' .. health, 0.35)         
     y = y + 0.02
 end
+
+Utils.GetCentreOfVectors = function(v1, v2)
+    return vector3((v1.x+v2.x)/2.0,(v1.y+v2.y)/2.0,(v1.z+v2.z)/2.0)
+end
