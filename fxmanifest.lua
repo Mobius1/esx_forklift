@@ -6,7 +6,7 @@ description 'ESX Forklift Driver Job'
 
 author 'Karl Saunders'
 
-version '0.1.0'
+version '0.1.1'
 
 server_scripts {
     '@async/async.lua',

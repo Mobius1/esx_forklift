@@ -73,7 +73,7 @@ function InitFLTJob()
 
             Ready = true
             Stop = false
-        
+
             GetDistances()
             InitThreads()
             UpdateBlips()
@@ -146,23 +146,17 @@ function DrawDropOffPoint()
 
         local pedPos = Utils.TranslateVector(Zones.Drop.Pos, Zones.Drop.Heading - 90, 2.2)
 
-        RequestModel( 0x867639D1 )
-        while ( not HasModelLoaded( 0x867639D1 ) ) do
-            Wait( 1 )
+        RequestModel(0x867639D1)
+        while ( not HasModelLoaded(0x867639D1) ) do
+            Wait(1)
         end
-    
-        -- Position you want ped to face
-        local positionToFace = Utils.GetCentreOfVectors(Zones.Drop.Bounds[4], Zones.Drop.Bounds[3])
 
-        -- Position diff
-        local x = positionToFace.x - pedPos.x
-        local y = positionToFace.y - pedPos.y
+        local center = Utils.GetCentreOfVectors(Zones.Drop.Bounds[4], Zones.Drop.Bounds[3])
+        local Heading = GetHeadingFromVector_2d(center.x - pedPos.x, center.y - pedPos.y)
 
-        -- Calculate heading
-        local heading = GetHeadingFromVector_2d(x, y)
-
-        local ped = CreatePed('PED_TYPE_CIVMALE', 0x867639D1, pedPos.x, pedPos.y, pedPos.z, heading, false, false)
-        TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_CLIPBOARD', 0, true)       
+        local ped = CreatePed('PED_TYPE_CIVMALE', 0x867639D1, pedPos.x, pedPos.y, pedPos.z, Heading, false, false)
+        TaskStartScenarioInPlace(ped, 'WORLD_HUMAN_CLIPBOARD', 0, true)    
+        SetModelAsNoLongerNeeded(0x867639D1)   
         
         Zones.Drop.Ped = ped
     end)
@@ -283,7 +277,13 @@ end
 function WreckPallet()
     -- Play Sound
     PlaySoundFrontend(-1, "LOSER", "HUD_AWARDS", 1)
+
+    -- Stop FLT
+    SetVehicleHandbrake(Player.FLT.Entity, true)
     
+    -- Play animation
+    Utils.PlayAnimation("anim@mp_player_intcelebrationmale@face_palm", "face_palm")
+
     -- Show Delivery Message
     DisplayMessage('wrecked')
     
@@ -321,6 +321,10 @@ function ResetDelivery()
     end
     
     RemovePallet()
+
+    Citizen.SetTimeout(3000, function()
+        SetVehicleHandbrake(Player.FLT.Entity, false)
+    end)
     
     Citizen.SetTimeout(6000, function()
     
@@ -463,6 +467,7 @@ function Populate()
 
         v.Ped = ped
     end
+
     
     Citizen.CreateThread(function()
         local model = GetHashKey(Config.Population.Radio.model)
@@ -564,8 +569,9 @@ function StartPalletThread()
                         Player.AtPallet = IsEntityAtEntity(Player.FLT.Entity, Player.Pallet.Entity, 3.0, 3.0, 3.0, 0, 1, 0)
                     end
 
+                    Player.Pallet.Health = GetEntityHealth(Player.Pallet.Entity)
+
                     if Zones.Drop.Active then
-                        Player.Pallet.Health = GetEntityHealth(Player.Pallet.Entity)
                         Player.Pallet.Heading = GetEntityHeading(Player.Pallet.Entity)
                         Player.Pallet.Lifted = IsEntityInAir(Player.Pallet.Entity)
 

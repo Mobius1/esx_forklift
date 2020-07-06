@@ -189,3 +189,15 @@ end
 Utils.GetCentreOfVectors = function(v1, v2)
     return vector3((v1.x+v2.x)/2.0,(v1.y+v2.y)/2.0,(v1.z+v2.z)/2.0)
 end
+
+Utils.PlayAnimation = function(animDict, animName)
+    if not HasAnimDictLoaded(animDict) then
+        RequestAnimDict(animDict)
+        while not HasAnimDictLoaded(animDict) do
+            Wait(0)
+        end
+    end
+    
+    TaskPlayAnim(Player.Ped, animDict, animName, 8.0, 1.0, 3000, 16, 0.0, false, false, true)
+    RemoveAnimDict(animDict)
+end
