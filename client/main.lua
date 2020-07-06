@@ -280,9 +280,15 @@ function WreckPallet()
 
     -- Stop FLT
     SetVehicleHandbrake(Player.FLT.Entity, true)
-    
+
     -- Play animation
     Utils.PlayAnimation("anim@mp_player_intcelebrationmale@face_palm", "face_palm")
+
+    -- Allow FLT to move again
+    Citizen.SetTimeout(3000, function()
+        SetVehicleHandbrake(Player.FLT.Entity, false)
+    end)    
+
 
     -- Show Delivery Message
     DisplayMessage('wrecked')
@@ -297,6 +303,22 @@ function DeliverPallet()
 
     -- Play Sound
     PlaySoundFrontend(-1, "PICK_UP", "HUD_FRONTEND_DEFAULT_SOUNDSET", 1)
+
+    -- Stop FLT
+    SetVehicleHandbrake(Player.FLT.Entity, true)
+
+    -- Play animation
+    Utils.PlayAnimation("mp_action", "thanks_male_06")
+
+    if Zones.Drop.Ped then
+        Utils.FacePedToEntity(Zones.Drop.Ped, Player.Ped)        
+        Utils.PlayAnimation("mp_action", "thanks_male_06", Zones.Drop.Ped)
+    end
+
+    -- Allow FLT to move again
+    Citizen.SetTimeout(3000, function()
+        SetVehicleHandbrake(Player.FLT.Entity, false)
+    end)    
 
     -- Show Delivery Message
     DisplayMessage('delivered')
@@ -321,10 +343,6 @@ function ResetDelivery()
     end
     
     RemovePallet()
-
-    Citizen.SetTimeout(3000, function()
-        SetVehicleHandbrake(Player.FLT.Entity, false)
-    end)
     
     Citizen.SetTimeout(6000, function()
     

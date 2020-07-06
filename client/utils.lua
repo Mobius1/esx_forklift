@@ -190,7 +190,12 @@ Utils.GetCentreOfVectors = function(v1, v2)
     return vector3((v1.x+v2.x)/2.0,(v1.y+v2.y)/2.0,(v1.z+v2.z)/2.0)
 end
 
-Utils.PlayAnimation = function(animDict, animName)
+Utils.PlayAnimation = function(animDict, animName, ped)
+
+    if ped == nil then
+        ped = Player.Ped
+    end
+
     if not HasAnimDictLoaded(animDict) then
         RequestAnimDict(animDict)
         while not HasAnimDictLoaded(animDict) do
@@ -198,6 +203,24 @@ Utils.PlayAnimation = function(animDict, animName)
         end
     end
     
-    TaskPlayAnim(Player.Ped, animDict, animName, 8.0, 1.0, 3000, 16, 0.0, false, false, true)
+    TaskPlayAnim(ped, animDict, animName, 8.0, 1.0, 3000, 16, 0.0, false, false, true)
     RemoveAnimDict(animDict)
+end
+
+Utils.FacePedToEntity = function(ped, entity)
+    -- Position you want ped to face
+    local positionToFace = GetEntityCoords(entity)
+
+    -- Current ped position
+    local pedPos = GetEntityCoords(ped)
+
+    -- Position diff
+    local x = positionToFace.x - pedPos.x
+    local y = positionToFace.y - pedPos.y
+
+    -- Calculate heading
+    local heading = GetHeadingFromVector_2d(x, y)
+        
+    -- Set the ped's new heading
+    SetEntityHeading(ped, heading)
 end
