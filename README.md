@@ -1,6 +1,8 @@
 # esx_forklift
 Forklift job for FiveM
 
+**NOTE: This resource is still under active development. While it works almost perfectly, there may be unreported bugs.**
+
 ## Features
 * Pickup and deliver pallets
 * Earnings per-pallet delivered
